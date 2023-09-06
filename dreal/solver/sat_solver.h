@@ -88,6 +88,12 @@ class SatSolver {
     return predicate_abstractor_[var];
   }
 
+  // Generate the unsat core.
+  const Formula UnsatCore() const;
+
+  // Get the stored unsat core.
+  const Formula& get_unsat_core() const { return unsat_core_; }
+
  private:
   // Adds a formula @p f to the solver.
   //
@@ -137,6 +143,9 @@ class SatSolver {
   ///
   /// TODO(soonho): Remove this hack when it's not needed.
   bool has_picosat_pop_used_{false};
+
+  // The unsat core formula.
+  Formula unsat_core_;
 };
 
 }  // namespace dreal

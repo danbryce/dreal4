@@ -119,6 +119,10 @@ const Box& Context::box() const { return impl_->box(); }
 
 const Box& Context::get_model() const { return impl_->get_model(); }
 
+const Formula& Context::get_unsat_core() const {
+  return impl_->get_unsat_core();
+}
+
 const ScopedVector<Formula>& Context::assertions() const {
   return impl_->assertions();
 }

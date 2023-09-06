@@ -31,6 +31,7 @@ using std::set;
 using std::vector;
 
 SatSolver::SatSolver(const Config& config) : sat_{picosat_init()} {
+  picosat_enable_trace_generation(sat_);
   // Enable partial checks via picosat_deref_partial. See the call-site in
   // SatSolver::CheckSat().
   picosat_save_original_clauses(sat_);
@@ -169,6 +170,7 @@ optional<SatSolver::Model> SatSolver::CheckSat() {
     return model;
   } else if (ret == PICOSAT_UNSATISFIABLE) {
     DREAL_LOG_DEBUG("SatSolver::CheckSat() No solution.");
+    unsat_core_ = UnsatCore();
     // UNSAT Case.
     return {};
   } else {
@@ -239,4 +241,81 @@ void SatSolver::MakeSatVar(const Variable& var) {
   to_sym_var_.insert(sat_var, var);
   DREAL_LOG_DEBUG("SatSolver::MakeSatVar({} ↦ {})", var, sat_var);
 }
+
+const Formula SatSolver::UnsatCore() const {
+  DREAL_LOG_DEBUG("SatSolver::WriteCore() Writing unsat core ...");
+  FILE* core_file;
+  core_file = fopen("core.dimacs", "w");
+  picosat_write_clausal_core(sat_, core_file);
+  fclose(core_file);
+
+  std::ifstream file("core.dimacs");
+
+  Formula core = Formula::True();
+
+  if (file) {
+    std::stringstream buffer;
+
+    buffer << file.rdbuf();
+
+    file.close();
+
+    DREAL_LOG_DEBUG("SatSolver::WriteCore() Read unsat core: {}", buffer.str());
+
+    string p;
+    string cnf;
+    int num_clauses;
+    int num_vars;
+
+    buffer >> p >> cnf >> num_clauses >> num_vars;
+
+    DREAL_LOG_DEBUG(
+        "SatSolver::WriteCore() Reading {} clauses over {} variables",
+        num_clauses, num_vars);
+    std::set<Formula> clauses;
+    for (int c = 0; c < num_clauses; c++) {
+      std::set<Formula> clause_vars;
+      int literal;
+      bool clause_internal =
+          false;  // Does the clause have an internal picosat variable?
+      do {
+        buffer >> literal;
+        if (literal != 0) {
+          int picosat_var = literal;
+          if (literal < 0) {
+            picosat_var = -1 * picosat_var;
+          }
+          const auto it_var = to_sym_var_.find(picosat_var);
+          if (it_var == to_sym_var_.end()) {
+            // There is no symbolic::Variable corresponding to this
+            // picosat variable (int). This could be because of
+            // picosat_push/pop.
+            clause_internal = true;
+            continue;
+          }
+
+          if (!clause_internal) {
+            const Variable& var{it_var->second};
+            if (literal != picosat_var) {
+              clause_vars.insert(!Formula(var));
+            } else {
+              clause_vars.insert(Formula(var));
+            }
+          }
+        }
+      } while (literal != 0);
+      Formula clause = make_disjunction(clause_vars);
+      if (!clause_internal) {
+        clauses.insert(clause);
+
+        DREAL_LOG_DEBUG("SatSolver::WriteCore() Extracted clause: {}", clause);
+      } else {
+        DREAL_LOG_DEBUG("SatSolver::WriteCore() Skipping internal clause ...");
+      }
+    }
+    core = make_conjunction(clauses);
+  }
+  return core;
+}
+
 }  // namespace dreal

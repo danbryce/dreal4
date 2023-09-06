@@ -58,6 +58,7 @@ class Context::Impl {
   const ScopedVector<Formula>& assertions() const;
   Box& box() { return boxes_.last(); }
   const Box& get_model() { return model_; }
+  const Formula& get_unsat_core() const { return sat_solver_.get_unsat_core(); }
 
  private:
   // Add the variable @p v to the current box. This is used to

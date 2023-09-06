@@ -140,6 +140,9 @@ class Context {
   /// response to an invocation of the check-sat.
   const Box& get_model() const;
 
+  /// Return the unsat core found by the sat solver.
+  const Formula& get_unsat_core() const;
+
  private:
   // This header is exposed to external users as a part of API. We use
   // PIMPL idiom to hide internals and to reduce number of '#includes' in this
