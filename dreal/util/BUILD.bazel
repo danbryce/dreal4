@@ -392,6 +392,17 @@ dreal_cc_library(
     ],
 )
 
+dreal_cc_library(
+    name = "fopencookie",
+    srcs = [
+        "fopencookie.cc",
+    ],
+    hdrs = [
+        "fopencookie.h",
+    ],
+    visibility = ["//dreal:__subpackages__"],
+)
+
 # -----
 # Tests
 # -----

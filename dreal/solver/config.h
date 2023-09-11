@@ -155,6 +155,12 @@ class Config {
   /// Returns a mutable OptionValue for `mcts`.
   OptionValue<bool>& mutable_mcts();
 
+  /// Returns whether it computes the unsat core.
+  bool unsat_core() const;
+
+  /// Returns a mutable OptionValue for `unsat-core`.
+  OptionValue<bool>& mutable_unsat_core();
+
   /// @}
 
   static constexpr double kDefaultPrecision{0.001};
@@ -176,6 +182,7 @@ class Config {
   OptionValue<bool> stack_left_box_first_{false};
   OptionValue<bool> smtlib2_compliant_{false};
   OptionValue<bool> mcts_{false};
+  OptionValue<bool> unsat_core_{false};
 
   // --------------------------------------------------------------------------
   // NLopt options (stopping criteria)

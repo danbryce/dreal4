@@ -117,6 +117,9 @@ OptionValue<uint32_t>& Config::mutable_random_seed() { return random_seed_; }
 bool Config::mcts() const { return mcts_.get(); }
 OptionValue<bool>& Config::mutable_mcts() { return mcts_; }
 
+bool Config::unsat_core() const { return unsat_core_.get(); }
+OptionValue<bool>& Config::mutable_unsat_core() { return unsat_core_; }
+
 std::ostream& operator<<(std::ostream& os,
                          const Config::SatDefaultPhase& sat_default_phase) {
   switch (sat_default_phase) {

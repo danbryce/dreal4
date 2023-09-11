@@ -84,6 +84,9 @@ class Context::Impl {
   // those non-model variables.
   Box ExtractModel(const Box& box) const;
 
+  // write the unsat core to ./unsat.core
+  void extract_unsat_core() const;
+
   Config config_;
   optional<Logic> logic_{};
   std::unordered_map<std::string, std::string> info_;

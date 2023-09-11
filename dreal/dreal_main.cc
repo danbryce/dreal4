@@ -154,6 +154,11 @@ void MainProgram::AddOptions() {
            0 /* Delimiter if expecting multiple args. */,
            "Use MCTS Branch and Prune Algorithms.\n", "--mcts", "-m");
 
+  opt_.add("false" /* Default */, false /* Required? */,
+           0 /* Number of args expected. */,
+           0 /* Delimiter if expecting multiple args. */,
+           "Compute the unsat core (if unsat).\n", "--unsat-core", "-c");
+
   const string kDefaultNloptFtolRel{
       fmt::format("{}", Config::kDefaultNloptFtolRel)};
   opt_.add(kDefaultNloptFtolRel.c_str() /* Default */, false /* Required? */,
@@ -334,6 +339,13 @@ void MainProgram::ExtractOptions() {
     config_.mutable_mcts().set_from_command_line(true);
     DREAL_LOG_DEBUG("MainProgram::ExtractOptions() --mcts = {}",
                     config_.mcts());
+  }
+
+  // --unsat-core
+  if (opt_.isSet("--unsat-core")) {
+    config_.mutable_unsat_core().set_from_command_line(true);
+    DREAL_LOG_DEBUG("MainProgram::ExtractOptions() --unsat-core = {}",
+                    config_.unsat_core());
   }
 
   // --forall-polytope

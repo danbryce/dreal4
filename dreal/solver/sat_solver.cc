@@ -15,11 +15,14 @@
 */
 #include "dreal/solver/sat_solver.h"
 
+#include <fstream>
 #include <ostream>
+#include <sstream>
 #include <utility>
 
 #include "dreal/util/assert.h"
 #include "dreal/util/exception.h"
+#include "dreal/util/fopencookie.h"
 #include "dreal/util/logging.h"
 #include "dreal/util/stat.h"
 #include "dreal/util/timer.h"
@@ -30,8 +33,11 @@ using std::cout;
 using std::set;
 using std::vector;
 
-SatSolver::SatSolver(const Config& config) : sat_{picosat_init()} {
-  picosat_enable_trace_generation(sat_);
+SatSolver::SatSolver(const Config& config)
+    : sat_{picosat_init()}, compute_unsat_core_{config.unsat_core()} {
+  if (compute_unsat_core_) {
+    picosat_enable_trace_generation(sat_);
+  }
   // Enable partial checks via picosat_deref_partial. See the call-site in
   // SatSolver::CheckSat().
   picosat_save_original_clauses(sat_);
@@ -170,7 +176,9 @@ optional<SatSolver::Model> SatSolver::CheckSat() {
     return model;
   } else if (ret == PICOSAT_UNSATISFIABLE) {
     DREAL_LOG_DEBUG("SatSolver::CheckSat() No solution.");
-    unsat_core_ = UnsatCore();
+    if (compute_unsat_core_) {
+      unsat_core_ = ExtractUnsatCore();
+    }
     // UNSAT Case.
     return {};
   } else {
@@ -191,9 +199,17 @@ void SatSolver::Pop() {
 
 void SatSolver::Push() {
   DREAL_LOG_DEBUG("SatSolver::Push()");
-  picosat_push(sat_);
+
+  // Create a variable for the context variable sat_var
+  const int sat_var{picosat_push(sat_)};
+  std::ostringstream var_name;
+  var_name << "context_" << sat_var;
+  Variable var{var_name.str(), Variable::Type::BOOLEAN};
+
   to_sat_var_.push();
+  to_sat_var_.insert(var.get_id(), sat_var);
   to_sym_var_.push();
+  to_sym_var_.insert(sat_var, var);
   tseitin_variables_.push();
 }
 
@@ -242,11 +258,21 @@ void SatSolver::MakeSatVar(const Variable& var) {
   DREAL_LOG_DEBUG("SatSolver::MakeSatVar({} ↦ {})", var, sat_var);
 }
 
-const Formula SatSolver::UnsatCore() const {
-  DREAL_LOG_DEBUG("SatSolver::WriteCore() Writing unsat core ...");
-  FILE* core_file;
-  core_file = fopen("core.dimacs", "w");
+const Formula SatSolver::ExtractUnsatCore(bool unit_propagate_context_vars) {
+  DREAL_LOG_DEBUG("SatSolver::ExtractUnsatCore() Writing unsat core ...");
+
+  // struct memfile_cookie mycookie;
+  // std::stringstream buf;
+  // mycookie.buf = &buf;
+  // cookie_io_functions_t memfile_func;
+  // create_stream_as_file_memfile_func(memfile_func);
+  // FILE* core_file = create_cookie_stream(mycookie, memfile_func);
+
+  // FILE* core_file;
+  FILE* core_file = fopen("core.dimacs", "w");
+
   picosat_write_clausal_core(sat_, core_file);
+
   fclose(core_file);
 
   std::ifstream file("core.dimacs");
@@ -254,30 +280,32 @@ const Formula SatSolver::UnsatCore() const {
   Formula core = Formula::True();
 
   if (file) {
+    // std::stringstream& buffer = mycookie.buf;
+    // std::stringstream buffer{mycookie.buf->str()};
+    // file.close();
+
+    // // Read from the buffer
     std::stringstream buffer;
-
     buffer << file.rdbuf();
-
     file.close();
 
-    DREAL_LOG_DEBUG("SatSolver::WriteCore() Read unsat core: {}", buffer.str());
+    DREAL_LOG_DEBUG("SatSolver::ExtractUnsatCore() Read unsat core: {}",
+                    buffer.str());
 
     string p;
     string cnf;
     int num_clauses;
     int num_vars;
 
-    buffer >> p >> cnf >> num_clauses >> num_vars;
+    buffer >> p >> cnf >> num_vars >> num_clauses;
 
     DREAL_LOG_DEBUG(
-        "SatSolver::WriteCore() Reading {} clauses over {} variables",
+        "SatSolver::ExtractUnsatCore() Reading {} clauses over {} variables",
         num_clauses, num_vars);
     std::set<Formula> clauses;
     for (int c = 0; c < num_clauses; c++) {
       std::set<Formula> clause_vars;
       int literal;
-      bool clause_internal =
-          false;  // Does the clause have an internal picosat variable?
       do {
         buffer >> literal;
         if (literal != 0) {
@@ -290,31 +318,46 @@ const Formula SatSolver::UnsatCore() const {
             // There is no symbolic::Variable corresponding to this
             // picosat variable (int). This could be because of
             // picosat_push/pop.
-            clause_internal = true;
+
             continue;
           }
 
-          if (!clause_internal) {
-            const Variable& var{it_var->second};
-            if (literal != picosat_var) {
+          const Variable& var{it_var->second};
+          bool is_context_var = var.get_name().find("context_") == 0;
+          if (literal != picosat_var) {  // literal may be negative,
+                                         // picosat_var is an atom
+            // if is_context_var and negative, then literal is false and can be
+            // ignored
+            if (!is_context_var || !unit_propagate_context_vars) {
               clause_vars.insert(!Formula(var));
+            }
+
+          } else {
+            // if is_context_var and positive, then clause is true and can be
+            // ignored
+            if (is_context_var && unit_propagate_context_vars) {
+              clause_vars.erase(clause_vars.begin(), clause_vars.end());
+              break;
             } else {
               clause_vars.insert(Formula(var));
             }
           }
         }
       } while (literal != 0);
-      Formula clause = make_disjunction(clause_vars);
-      if (!clause_internal) {
+
+      // if unit propagating the context vars, only keep non empty clauses
+      if (clause_vars.size() > 0) {
+        Formula clause = make_disjunction(clause_vars);
+
         clauses.insert(clause);
 
-        DREAL_LOG_DEBUG("SatSolver::WriteCore() Extracted clause: {}", clause);
-      } else {
-        DREAL_LOG_DEBUG("SatSolver::WriteCore() Skipping internal clause ...");
+        DREAL_LOG_DEBUG("SatSolver::ExtractUnsatCore() Extracted clause: {}",
+                        clause);
       }
     }
     core = make_conjunction(clauses);
   }
+
   return core;
 }
 

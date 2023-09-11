@@ -733,6 +733,10 @@ PYBIND11_MODULE(_dreal_py, m) {
       .def_property(
           "mcts", &Config::mcts,
           [](Config& self, const bool mcts) { self.mutable_mcts() = mcts; })
+      .def_property("unsat_core", &Config::unsat_core,
+                    [](Config& self, const bool unsat_core) {
+                      self.mutable_unsat_core() = unsat_core;
+                    })
       .def("__str__",
            [](const Config& self) { return fmt::format("{}", self); });
 
@@ -758,6 +762,8 @@ PYBIND11_MODULE(_dreal_py, m) {
              SignalHandlerGuard guard{SIGINT, &sigint_handler, &g_interrupted};
              return self.CheckSat();
            })
+      .def("get_unsat_core",
+           [](Context& self) { return self.get_unsat_core(); })
       .def("DeclareVariable",
            [](Context& self, const Variable& v) {
              return self.DeclareVariable(v);

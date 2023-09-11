@@ -88,9 +88,6 @@ class SatSolver {
     return predicate_abstractor_[var];
   }
 
-  // Generate the unsat core.
-  const Formula UnsatCore() const;
-
   // Get the stored unsat core.
   const Formula& get_unsat_core() const { return unsat_core_; }
 
@@ -120,6 +117,9 @@ class SatSolver {
   // Add a clause @p f to sat solver.
   void DoAddClause(const Formula& f);
 
+  // Generate the unsat core.
+  const Formula ExtractUnsatCore(bool unit_propagate_context_vars = true);
+
   // Member variables
   // ----------------
   // Pointer to the PicoSat solver.
@@ -146,6 +146,9 @@ class SatSolver {
 
   // The unsat core formula.
   Formula unsat_core_;
+
+  // Compute the unsat_core
+  bool compute_unsat_core_{false};
 };
 
 }  // namespace dreal

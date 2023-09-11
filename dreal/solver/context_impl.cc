@@ -215,6 +215,9 @@ optional<Box> Context::Impl::CheckSat() {
     return model_;
   } else {
     model_.set_empty();
+    if (config_.unsat_core()) {
+      extract_unsat_core();
+    }
     return result;
   }
 }
@@ -442,6 +445,13 @@ void Context::Impl::mark_model_variable(const Variable& v) {
 
 const ScopedVector<Formula>& Context::Impl::assertions() const {
   return stack_;
+}
+
+void Context::Impl::extract_unsat_core() const {
+  std::ofstream myfile;
+  myfile.open("unsat.core");
+  myfile << get_unsat_core();
+  myfile.close();
 }
 
 }  // namespace dreal
