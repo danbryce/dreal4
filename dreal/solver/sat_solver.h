@@ -118,7 +118,7 @@ class SatSolver {
   void DoAddClause(const Formula& f);
 
   // Generate the unsat core.
-  const Formula ExtractUnsatCore(bool unit_propagate_context_vars = true);
+  const Formula ExtractUnsatCore();
 
   // Member variables
   // ----------------

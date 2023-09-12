@@ -112,6 +112,9 @@ test:kcov --test_tag_filters=-cpplint,-pycodestyle,-no_kcov
 test:kcov --nocache_test_results
 test:kcov --test_timeout=120,600,1800,7200
 
+### Picosat build. ###
+# build:external:picosat --define TRACE=1
+
 # When compiling with dReal as the main WORKSPACE (i.e., if and only if this
 # rcfile is loaded), we enable -Werror by default for dReal's *own* targets,
 # but not for our externals.

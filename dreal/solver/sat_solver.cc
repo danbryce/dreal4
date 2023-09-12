@@ -195,21 +195,23 @@ void SatSolver::Pop() {
   to_sat_var_.pop();
   picosat_pop(sat_);
   has_picosat_pop_used_ = true;
+  // unsat_core_ = Formula::True();
 }
 
 void SatSolver::Push() {
   DREAL_LOG_DEBUG("SatSolver::Push()");
+  picosat_push(sat_);
 
-  // Create a variable for the context variable sat_var
-  const int sat_var{picosat_push(sat_)};
-  std::ostringstream var_name;
-  var_name << "context_" << sat_var;
-  Variable var{var_name.str(), Variable::Type::BOOLEAN};
+  // // Create a variable for the context variable sat_var
+  // const int sat_var{picosat_push(sat_)};
+  // std::ostringstream var_name;
+  // var_name << "context_" << sat_var;
+  // Variable var{var_name.str(), Variable::Type::BOOLEAN};
 
   to_sat_var_.push();
-  to_sat_var_.insert(var.get_id(), sat_var);
+  // to_sat_var_.insert(var.get_id(), sat_var);
   to_sym_var_.push();
-  to_sym_var_.insert(sat_var, var);
+  // to_sym_var_.insert(sat_var, var);
   tseitin_variables_.push();
 }
 
@@ -258,7 +260,7 @@ void SatSolver::MakeSatVar(const Variable& var) {
   DREAL_LOG_DEBUG("SatSolver::MakeSatVar({} ↦ {})", var, sat_var);
 }
 
-const Formula SatSolver::ExtractUnsatCore(bool unit_propagate_context_vars) {
+const Formula SatSolver::ExtractUnsatCore() {
   DREAL_LOG_DEBUG("SatSolver::ExtractUnsatCore() Writing unsat core ...");
 
   // struct memfile_cookie mycookie;
@@ -314,38 +316,40 @@ const Formula SatSolver::ExtractUnsatCore(bool unit_propagate_context_vars) {
             picosat_var = -1 * picosat_var;
           }
           const auto it_var = to_sym_var_.find(picosat_var);
+          bool is_context_var = false;
           if (it_var == to_sym_var_.end()) {
             // There is no symbolic::Variable corresponding to this
             // picosat variable (int). This could be because of
             // picosat_push/pop.
-
-            continue;
+            is_context_var = true;
+            // continue;
           }
 
-          const Variable& var{it_var->second};
-          bool is_context_var = var.get_name().find("context_") == 0;
+          // bool is_context_var = var.get_name().find("context_") == 0;
           if (literal != picosat_var) {  // literal may be negative,
                                          // picosat_var is an atom
             // if is_context_var and negative, then literal is false and can be
             // ignored
-            if (!is_context_var || !unit_propagate_context_vars) {
+            if (!is_context_var) {  // || !unit_propagate_context_vars) {
+              const Variable& var{it_var->second};
               clause_vars.insert(!Formula(var));
             }
 
           } else {
             // if is_context_var and positive, then clause is true and can be
             // ignored
-            if (is_context_var && unit_propagate_context_vars) {
+            if (is_context_var) {
               clause_vars.erase(clause_vars.begin(), clause_vars.end());
               break;
             } else {
+              const Variable& var{it_var->second};
               clause_vars.insert(Formula(var));
             }
           }
         }
       } while (literal != 0);
 
-      // if unit propagating the context vars, only keep non empty clauses
+      //  only keep non empty clauses
       if (clause_vars.size() > 0) {
         Formula clause = make_disjunction(clause_vars);
 
