@@ -305,6 +305,7 @@ const Formula SatSolver::ExtractUnsatCore() {
         "SatSolver::ExtractUnsatCore() Reading {} clauses over {} variables",
         num_clauses, num_vars);
     std::set<Formula> clauses;
+    const auto& var_to_formula_map = predicate_abstractor_.var_to_formula_map();
     for (int c = 0; c < num_clauses; c++) {
       std::set<Formula> clause_vars;
       int literal;
@@ -323,6 +324,28 @@ const Formula SatSolver::ExtractUnsatCore() {
             // picosat_push/pop.
             is_context_var = true;
             // continue;
+          }
+
+          bool is_tseitin_var = false;
+          if (!is_context_var) {
+            const Variable& var{it_var->second};
+            const auto it = var_to_formula_map.find(var);
+            if (it != var_to_formula_map.end()) {
+              is_tseitin_var = false;
+            } else if (tseitin_variables_.count(var.get_id()) == 0) {
+              is_tseitin_var = false;
+            } else {
+              is_tseitin_var = true;
+            }
+            DREAL_LOG_DEBUG(
+                "SatSolver::ExtractUnsatCore() Extracted literal: {}, var: {}, "
+                "tseitin: {}, context: {}",
+                literal, var, is_tseitin_var, is_context_var);
+          } else {
+            DREAL_LOG_DEBUG(
+                "SatSolver::ExtractUnsatCore() Extracted literal: {}, tseitin: "
+                "{}, context: {}",
+                literal, is_tseitin_var, is_context_var);
           }
 
           // bool is_context_var = var.get_name().find("context_") == 0;
@@ -355,8 +378,11 @@ const Formula SatSolver::ExtractUnsatCore() {
 
         clauses.insert(clause);
 
-        DREAL_LOG_DEBUG("SatSolver::ExtractUnsatCore() Extracted clause: {}",
-                        clause);
+        DREAL_LOG_DEBUG("SatSolver::ExtractUnsatCore() Extracted clause {}: {}",
+                        c, clause);
+      } else {
+        DREAL_LOG_DEBUG("SatSolver::ExtractUnsatCore() Skipping clause {} ...",
+                        c);
       }
     }
     core = make_conjunction(clauses);
