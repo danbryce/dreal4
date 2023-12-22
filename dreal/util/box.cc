@@ -179,11 +179,11 @@ pair<double, int> Box::FirstDiamGT(double threshold) const {
     const double diam_i{values_[i].diam()};
     if ((diam_i < min_diam && values_[i].is_bisectable() &&
          diam_i > threshold) ||
-        (idx == -1 &&
+        (min_diam == std::numeric_limits<double>::max() &&
          diam_i == POS_INFINITY)) {  // Allow infinite intervals to be split
       min_diam = diam_i;
       idx = i;
-      return make_pair(min_diam, idx);
+      // return make_pair(min_diam, idx);
     }
   }
   return make_pair(min_diam, idx);

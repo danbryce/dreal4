@@ -190,6 +190,8 @@ double MctsNode::simulate_box(
   }
   int depth = 0;
   while (!candidates.empty() && num_to_assign > 0) {
+    num_to_assign--;
+    DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): depth = {}", depth);
     depth++;
     vector<Box> next_candidates;
     for (auto candidate = candidates.begin(); candidate != candidates.end();
