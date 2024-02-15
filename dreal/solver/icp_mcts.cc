@@ -19,6 +19,9 @@
 #include <tuple>
 #include <utility>
 
+#include "dreal/contractor/contractor.h"
+#include "dreal/contractor/contractor_fixpoint.h"
+#include "dreal/contractor/contractor_worklist_fixpoint.h"
 #include "dreal/solver/brancher.h"
 #include "dreal/solver/icp_stat.h"
 #include "dreal/util/box.h"
@@ -275,8 +278,7 @@ double MctsNode::simulate_box(
 
           contractor.Prune(cs);
           prune_timer_guard.pause();
-          stat.num_prune_++;
-          stat.num_prune_--;
+          stat.num_sim_prune_++;
 
           next_candidate = cs->box();
 
@@ -479,6 +481,27 @@ bool IcpMcts::CheckSat(const Contractor& contractor,
   return rvalue;
 }
 
+optional<Contractor> IcpMcts::make_heuristic_contractor(
+    const Contractor& contractor) {
+  switch (contractor.kind()) {
+    case Contractor::Kind::FIXPOINT:
+      // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
+      return make_contractor_fixpoint(TerminationCondition(0.1),
+                                      to_fixpoint(contractor)->contractors(),
+                                      config());
+    case Contractor::Kind::WORKLIST_FIXPOINT:
+      // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
+      return make_contractor_worklist_fixpoint(
+          TerminationCondition(0.1),
+          to_worklist_fixpoint(contractor)->contractors(), config());
+
+    default:
+      vector<Contractor> ctcs;
+      return make_contractor_fixpoint(TerminationCondition(0.1), ctcs,
+                                      config());
+  }
+}
+
 double IcpMcts::MctsBP(MctsNode* node,
                        const vector<FormulaEvaluator>& formula_evaluators,
                        ContractorStatus* const cs, const Contractor& contractor,
@@ -486,6 +509,9 @@ double IcpMcts::MctsBP(MctsNode* node,
                        TimerGuard& eval_timer_guard,
                        TimerGuard& prune_timer_guard, IcpStat& stat,
                        std::default_random_engine& rnd) {
+  const Contractor heuristic_contractor = static_cast<const Contractor>(
+      make_heuristic_contractor(contractor).value());
+
   double wins = 0;
   if (!node->terminal()) {
     if (node->children().empty()) {
@@ -497,7 +523,7 @@ double IcpMcts::MctsBP(MctsNode* node,
       if (expanded) {
         DREAL_LOG_DEBUG("X");
         MctsNode* child = node->select();
-        wins = child->simulate(formula_evaluators, cs, contractor,
+        wins = child->simulate(formula_evaluators, cs, heuristic_contractor,
                                eval_timer_guard, prune_timer_guard, config(),
                                stat, rnd);
         DREAL_LOG_DEBUG("{}", wins);

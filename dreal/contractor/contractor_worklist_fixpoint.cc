@@ -163,4 +163,8 @@ ostream& ContractorWorklistFixpoint::display(ostream& os) const {
   return os << ")";
 }
 
+const std::vector<Contractor>& ContractorWorklistFixpoint::contractors() const {
+  return contractors_;
+}
+
 }  // namespace dreal

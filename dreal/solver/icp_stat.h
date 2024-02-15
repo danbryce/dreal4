@@ -39,6 +39,7 @@ class IcpStat : public Stat {
 
   std::atomic<int> num_branch_{0};
   std::atomic<int> num_prune_{0};
+  std::atomic<int> num_sim_prune_{0};
 
   Timer timer_branch_;
   Timer timer_prune_;

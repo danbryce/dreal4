@@ -57,6 +57,8 @@ class ContractorFixpoint : public ContractorCell {
   void Prune(ContractorStatus* cs) const override;
   std::ostream& display(std::ostream& os) const override;
 
+  const std::vector<Contractor>& contractors() const;
+
  private:
   // Stop the fixed-point iteration if term_cond(old_box, new_box) is true.
   const TerminationCondition term_cond_;

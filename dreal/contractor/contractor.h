@@ -39,8 +39,27 @@ template <typename ContextType>
 class ContractorForall;
 
 // Box::IntervalVector × Box::IntervalVector → Bool
-using TerminationCondition =
-    std::function<bool(Box::IntervalVector const&, Box::IntervalVector const&)>;
+
+class TerminationCondition {
+ protected:
+  const double kThreshold;
+
+ public:
+  /// Default copy constructor.
+  TerminationCondition(const TerminationCondition&) = default;
+
+  /// Default move constructor.
+  TerminationCondition(TerminationCondition&&) = default;
+  TerminationCondition(const double threshold) : kThreshold(threshold) {}
+
+  bool operator()(Box::IntervalVector const& o_iv,
+                  Box::IntervalVector const& n_iv) const;
+};
+
+class DefaultTerminationCondition : public TerminationCondition {
+ public:
+  DefaultTerminationCondition() : TerminationCondition{0.01} {}
+};
 
 class Contractor {
  public:

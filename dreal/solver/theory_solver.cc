@@ -54,11 +54,9 @@ TheorySolver::TheorySolver(const Config& config)
   }
 }
 
-namespace {
-bool DefaultTerminationCondition(const Box::IntervalVector& old_iv,
-                                 const Box::IntervalVector& new_iv) {
+bool TerminationCondition::operator()(const Box::IntervalVector& old_iv,
+                                      const Box::IntervalVector& new_iv) const {
   DREAL_ASSERT(!new_iv.is_empty());
-  constexpr double kThreshold{0.01};
   // If there is a dimension which is improved more than
   // threshold, we continue the current fixed-point computation
   // (return false).
@@ -85,6 +83,7 @@ bool DefaultTerminationCondition(const Box::IntervalVector& old_iv,
   return true;
 }
 
+namespace {
 class TheorySolverStat : public Stat {
  public:
   explicit TheorySolverStat(const bool enabled) : Stat{enabled} {}
@@ -169,8 +168,8 @@ optional<Contractor> TheorySolver::BuildContractor(
         DREAL_ASSERT(inner_delta < epsilon && epsilon < delta);
         const Contractor ctc{make_contractor_forall<Context>(
             f, box, epsilon, inner_delta, config_)};
-        ctcs.emplace_back(make_contractor_fixpoint(DefaultTerminationCondition,
-                                                   {ctc}, config_));
+        ctcs.emplace_back(make_contractor_fixpoint(
+            DefaultTerminationCondition(), {ctc}, config_));
       } else {
         ctcs.emplace_back(make_contractor_ibex_fwdbwd(f, box, config_));
       }
@@ -197,10 +196,11 @@ optional<Contractor> TheorySolver::BuildContractor(
     }
   }
   if (config_.use_worklist_fixpoint()) {
-    return make_contractor_worklist_fixpoint(DefaultTerminationCondition, ctcs,
-                                             config_);
+    return make_contractor_worklist_fixpoint(DefaultTerminationCondition(),
+                                             ctcs, config_);
   } else {
-    return make_contractor_fixpoint(DefaultTerminationCondition, ctcs, config_);
+    return make_contractor_fixpoint(DefaultTerminationCondition(), ctcs,
+                                    config_);
   }
 }
 

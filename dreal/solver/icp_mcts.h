@@ -115,6 +115,9 @@ class IcpMcts : public IcpSeq {
                 TimerGuard& prune_timer_guard, IcpStat& stat,
                 std::default_random_engine& rnd);
 
+  // Generate a lower-cost contractor to use in simulation
+  optional<Contractor> make_heuristic_contractor(const Contractor& contractor);
+
   // If `stack_left_box_first_` is true, we add the left box from the
   // branching operation to the `stack`. Otherwise, we add the right
   // box first.
