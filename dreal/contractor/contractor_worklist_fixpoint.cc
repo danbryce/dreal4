@@ -167,4 +167,10 @@ const std::vector<Contractor>& ContractorWorklistFixpoint::contractors() const {
   return contractors_;
 }
 
+ContractorWorklistApproxFixpoint::ContractorWorklistApproxFixpoint(
+    TerminationCondition term_cond, std::vector<Contractor> contractors,
+    const Config& config)
+    : ContractorWorklistFixpoint::ContractorWorklistFixpoint(
+          term_cond, contractors, config) {}
+
 }  // namespace dreal

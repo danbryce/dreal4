@@ -73,4 +73,12 @@ class ContractorWorklistFixpoint : public ContractorCell {
   std::vector<DynamicBitset> input_to_contractors_;
 };
 
+class ContractorWorklistApproxFixpoint : public ContractorCell {
+  /// Constructs a fixpoint contractor with a termination condition
+  /// (Box × Box → Bool) and a sequence of Contractors {C₁, ..., Cₙ}.
+  ContractorWorklistApproxFixpoint(TerminationCondition term_cond,
+                                   std::vector<Contractor> contractors,
+                                   const Config& config);
+}
+
 }  // namespace dreal
