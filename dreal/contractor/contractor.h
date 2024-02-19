@@ -34,6 +34,7 @@ class ContractorIbexFwdbwd;
 class ContractorIbexPolytope;
 class ContractorFixpoint;
 class ContractorWorklistFixpoint;
+class ContractorWorklistApproxFixpoint;
 class ContractorJoin;
 template <typename ContextType>
 class ContractorForall;
@@ -71,6 +72,7 @@ class Contractor {
     IBEX_POLYTOPE,
     FIXPOINT,
     WORKLIST_FIXPOINT,
+    WORKLIST_APPROX_FIXPOINT,
     FORALL,
     JOIN,
   };
@@ -113,7 +115,7 @@ class Contractor {
  private:
   explicit Contractor(std::shared_ptr<ContractorCell> ptr);
 
-  std::shared_ptr<ContractorCell> ptr_{};
+   std::shared_ptr<ContractorCell> ptr_{};
 
   friend Contractor make_contractor_id(const Config& config);
   friend Contractor make_contractor_integer(const Box& box,
@@ -129,6 +131,9 @@ class Contractor {
       TerminationCondition term_cond,
       const std::vector<Contractor>& contractors, const Config& config);
   friend Contractor make_contractor_worklist_fixpoint(
+      TerminationCondition term_cond,
+      const std::vector<Contractor>& contractors, const Config& config);
+  friend Contractor make_contractor_worklist_approx_fixpoint(
       TerminationCondition term_cond,
       const std::vector<Contractor>& contractors, const Config& config);
   template <typename ContextType>
@@ -153,6 +158,8 @@ class Contractor {
       const Contractor& contractor);
   friend std::shared_ptr<ContractorWorklistFixpoint> to_worklist_fixpoint(
       const Contractor& contractor);
+  friend std::shared_ptr<ContractorWorklistApproxFixpoint>
+  to_worklist_approx_fixpoint(const Contractor& contractor);
   friend std::shared_ptr<ContractorJoin> to_join(const Contractor& contractor);
   template <typename ContextType>
   friend std::shared_ptr<ContractorForall<ContextType>> to_forall(
@@ -218,6 +225,15 @@ Contractor make_contractor_worklist_fixpoint(
     TerminationCondition term_cond, const std::vector<Contractor>& contractors,
     const Config& config);
 
+/// Returns an approximate worklist fixed-point contractor. The returned
+/// contractor applies the contractors in @p vec sequentially until @p term_cond
+/// is met.
+///
+/// @see ContractorFixpoint.
+Contractor make_contractor_worklist_approx_fixpoint(
+    TerminationCondition term_cond, const std::vector<Contractor>& contractors,
+    const Config& config);
+
 /// Returns a join contractor. The returned contractor does the following
 /// operation:
 /// <pre>
@@ -258,6 +274,9 @@ bool is_fixpoint(const Contractor& contractor);
 
 /// Returns true if @p contractor is worklist-fixpoint contractor.
 bool is_worklist_fixpoint(const Contractor& contractor);
+
+/// Returns true if @p contractor is worklist-approx-fixpoint contractor.
+bool is_worklist_approx_fixpoint(const Contractor& contractor);
 
 /// Returns true if @p contractor is forall contractor.
 bool is_forall(const Contractor& contractor);

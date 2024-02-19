@@ -167,10 +167,124 @@ const std::vector<Contractor>& ContractorWorklistFixpoint::contractors() const {
   return contractors_;
 }
 
+ostream& ContractorWorklistApproxFixpoint::display(ostream& os) const {
+  os << "WorklistApproxFixpoint(";
+  for (const Contractor& c : contractors_) {
+    os << c << ", ";
+  }
+  return os << ")";
+}
+
 ContractorWorklistApproxFixpoint::ContractorWorklistApproxFixpoint(
     TerminationCondition term_cond, std::vector<Contractor> contractors,
     const Config& config)
-    : ContractorWorklistFixpoint::ContractorWorklistFixpoint(
-          term_cond, contractors, config) {}
+    : ContractorCell{Contractor::Kind::WORKLIST_APPROX_FIXPOINT,
+                     DynamicBitset(ComputeInputSize(contractors)), config},
+      term_cond_{std::move(term_cond)},
+      contractors_{std::move(contractors)},
+      input_to_contractors_{static_cast<size_t>(ComputeInputSize(contractors_)),
+                            DynamicBitset(contractors_.size())} {
+  DREAL_ASSERT(!contractors_.empty());
+  // Setup the input member.
+  DynamicBitset& input{mutable_input()};
+  for (const Contractor& ctc : contractors_) {
+    input |= ctc.input();
+    if (ctc.include_forall()) {
+      set_include_forall();
+    }
+  }
+
+  // Setup input_to_contractors_.
+  for (size_t j = 0; j < contractors_.size(); ++j) {
+    for (size_t i = 0; i < contractors_[j].input().size(); ++i) {
+      if (contractors_[j].input()[i]) {
+        input_to_contractors_[i].set(j);
+      }
+    }
+  }
+}
+void ContractorWorklistApproxFixpoint::Prune(ContractorStatus* cs) const {
+  // worklist[i] means that i-th contractor in contractors_ needs to be
+  // applied.
+  DynamicBitset worklist(contractors_.size());
+  DynamicBitset next_worklist(contractors_.size());
+  const int branching_point = cs->branching_point();
+
+  // DREAL_LOG_ERROR("ContractorWorklistFixpoint::Prune -- Fill the Queue");
+  // 1. Fill the queue.
+  const Box::IntervalVector& iv{cs->box().interval_vector()};
+  Box::IntervalVector old_iv{iv};
+  if (branching_point < 0) {
+    // No branching_point information specified, add all contractors.
+    for (const auto& contractor : contractors_) {
+      // TODO(soonho): Need to save cs->output() and restore after
+      // running UpdateWorklist() below. For now, it should be OK
+      // since we do not call ContractorWorklistFixpoint::Prune()
+      // recursively.
+      cs->mutable_output().reset();
+      contractor.Prune(cs);
+      if (cs->box().empty()) {
+        return;
+      }
+      UpdateWorklist(cs->output(), input_to_contractors_, &worklist);
+    }
+  } else {
+    DREAL_ASSERT(static_cast<size_t>(branching_point) <
+                 input_to_contractors_.size());
+    const DynamicBitset& contractors_to_check{
+        input_to_contractors_[branching_point]};
+
+    DynamicBitset::size_type i_bit = contractors_to_check.find_first();
+    while (i_bit != DynamicBitset::npos) {
+      cs->mutable_output().reset();
+      contractors_[i_bit].Prune(cs);
+      if (cs->box().empty()) {
+        return;
+      }
+      UpdateWorklist(cs->output(), input_to_contractors_, &worklist);
+      i_bit = contractors_to_check.find_next(i_bit);
+    }
+  }
+  if (worklist.none() || term_cond_(old_iv, iv)) {
+    return;
+  }
+
+  // 2. Run worklist algorithm
+  // while worklist is not empty
+  //   for each ctc in worklist
+  //     if pruning with ctc does not satisfy term_cond_
+  //       (i.e., pruning had an effect)
+  //       add ctc's including ctc outputs that do not satsify term_cond_ to the
+  //       next worklist
+  //   worklist = next worklist
+
+  while (!worklist.none()) {
+    DREAL_LOG_INFO(
+        "ContractorWorklistApproxFixpoint(): Pruning new worklist of size = {}",
+        worklist.count());
+    for (DynamicBitset::size_type ctc_idx = worklist.find_first();
+         ctc_idx != DynamicBitset::npos;
+         ctc_idx = worklist.find_next(ctc_idx)) {
+      old_iv = iv;
+      worklist.set(ctc_idx, false);
+      cs->mutable_output().reset();
+      contractors_[ctc_idx].Prune(cs);
+      if (cs->box().empty()) {
+        DREAL_LOG_INFO("ContractorWorklistApproxFixpoint(): box empty.");
+        return;
+      }
+
+      if (!term_cond_(old_iv, iv)) {
+        DREAL_LOG_INFO(
+            "ContractorWorklistApproxFixpoint(): pruning successful, adding to "
+            "worklist.");
+        UpdateWorklist(cs->output(), input_to_contractors_, &next_worklist);
+      }
+    }
+    worklist = next_worklist;
+    next_worklist.clear();
+  }
+  DREAL_LOG_INFO("ContractorWorklistApproxFixpoint(): Done");
+}
 
 }  // namespace dreal

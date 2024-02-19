@@ -201,6 +201,18 @@ Contractor make_contractor_worklist_fixpoint(
   }
 }
 
+Contractor make_contractor_worklist_approx_fixpoint(
+    TerminationCondition term_cond, const vector<Contractor>& contractors,
+    const Config& config) {
+  vector<Contractor> ctcs{Flatten(contractors)};
+  if (ctcs.empty()) {
+    return make_contractor_id(config);
+  } else {
+    return Contractor{make_shared<ContractorWorklistApproxFixpoint>(
+        std::move(term_cond), std::move(ctcs), config)};
+  }
+}
+
 Contractor make_contractor_join(vector<Contractor> vec, const Config& config) {
   return Contractor{make_shared<ContractorJoin>(std::move(vec), config)};
 }
@@ -232,6 +244,9 @@ bool is_fixpoint(const Contractor& contractor) {
 }
 bool is_worklist_fixpoint(const Contractor& contractor) {
   return contractor.kind() == Contractor::Kind::WORKLIST_FIXPOINT;
+}
+bool is_worklist_approx_fixpoint(const Contractor& contractor) {
+  return contractor.kind() == Contractor::Kind::WORKLIST_APPROX_FIXPOINT;
 }
 bool is_forall(const Contractor& contractor) {
   return contractor.kind() == Contractor::Kind::FORALL;

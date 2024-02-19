@@ -194,7 +194,7 @@ double MctsNode::simulate_box(
   int depth = 0;
   while (!candidates.empty() && num_to_assign > 0) {
     num_to_assign--;
-    DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): depth = {}", depth);
+    DREAL_LOG_INFO("IcpMCTS:simulate_box(): depth = {}", depth);
     depth++;
     vector<Box> next_candidates;
     for (auto candidate = candidates.begin(); candidate != candidates.end();
@@ -491,8 +491,8 @@ optional<Contractor> IcpMcts::make_heuristic_contractor(
                                       config());
     case Contractor::Kind::WORKLIST_FIXPOINT:
       // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
-      return make_contractor_worklist_fixpoint(
-          TerminationCondition(0.1),
+      return make_contractor_worklist_approx_fixpoint(
+          TerminationCondition(0.5),
           to_worklist_fixpoint(contractor)->contractors(), config());
 
     default:
@@ -521,7 +521,7 @@ double IcpMcts::MctsBP(MctsNode* node,
                        eval_timer_guard, prune_timer_guard, config(), stat);
 
       if (expanded) {
-        DREAL_LOG_DEBUG("X");
+        DREAL_LOG_INFO("X");
         MctsNode* child = node->select();
         wins = child->simulate(formula_evaluators, cs, heuristic_contractor,
                                eval_timer_guard, prune_timer_guard, config(),

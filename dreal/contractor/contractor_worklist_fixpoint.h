@@ -74,11 +74,48 @@ class ContractorWorklistFixpoint : public ContractorCell {
 };
 
 class ContractorWorklistApproxFixpoint : public ContractorCell {
+ public:
   /// Constructs a fixpoint contractor with a termination condition
   /// (Box × Box → Bool) and a sequence of Contractors {C₁, ..., Cₙ}.
   ContractorWorklistApproxFixpoint(TerminationCondition term_cond,
                                    std::vector<Contractor> contractors,
                                    const Config& config);
-}
 
+  // Deleted copy constructor.
+  ContractorWorklistApproxFixpoint(const ContractorWorklistApproxFixpoint&) =
+      delete;
+
+  /// Deleted move constructor.
+  ContractorWorklistApproxFixpoint(ContractorWorklistApproxFixpoint&&) = delete;
+
+  /// Deleted copy assign operator.
+  ContractorWorklistApproxFixpoint& operator=(
+      const ContractorWorklistApproxFixpoint&) = delete;
+
+  /// Deleted move assign operator.
+  ContractorWorklistApproxFixpoint& operator=(
+      ContractorWorklistApproxFixpoint&&) = delete;
+
+  /// Default destructor.
+  ~ContractorWorklistApproxFixpoint() override = default;
+
+  void Prune(ContractorStatus* cs) const override;
+  std::ostream& display(std::ostream& os) const override;
+
+  const std::vector<Contractor>& contractors() const;
+
+ protected:
+  // Stop the fixed-point iteration if term_cond(old_box, new_box) is true.
+  const TerminationCondition term_cond_;
+
+  std::vector<Contractor> contractors_;
+
+  // input_to_contractors_[i] is the set of contractors whose input
+  // includes the i-th variable. That is, `input_to_contractors_[i][j]
+  // = true` indicates that if i-th dimension of the current box
+  // changes in a pruning operation, we need to run contractors_[j]
+  // because i ∈ contractors_[j].input(). This map is constructed in
+  // the constructor.
+  std::vector<DynamicBitset> input_to_contractors_;
+};
 }  // namespace dreal
