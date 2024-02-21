@@ -111,6 +111,7 @@ class IcpMcts : public IcpSeq {
   double MctsBP(MctsNode* node,
                 const std::vector<FormulaEvaluator>& formula_evaluators,
                 ContractorStatus* const cs, const Contractor& contractor,
+                const Contractor& heuristic_contractor,
                 TimerGuard& branch_timer_guard, TimerGuard& eval_timer_guard,
                 TimerGuard& prune_timer_guard, IcpStat& stat,
                 std::default_random_engine& rnd);

@@ -259,7 +259,7 @@ void ContractorWorklistApproxFixpoint::Prune(ContractorStatus* cs) const {
   //   worklist = next worklist
 
   while (!worklist.none()) {
-    DREAL_LOG_INFO(
+    DREAL_LOG_DEBUG(
         "ContractorWorklistApproxFixpoint(): Pruning new worklist of size = {}",
         worklist.count());
     for (DynamicBitset::size_type ctc_idx = worklist.find_first();
@@ -270,21 +270,26 @@ void ContractorWorklistApproxFixpoint::Prune(ContractorStatus* cs) const {
       cs->mutable_output().reset();
       contractors_[ctc_idx].Prune(cs);
       if (cs->box().empty()) {
-        DREAL_LOG_INFO("ContractorWorklistApproxFixpoint(): box empty.");
+        DREAL_LOG_DEBUG("ContractorWorklistApproxFixpoint(): box empty.");
         return;
       }
 
       if (!term_cond_(old_iv, iv)) {
-        DREAL_LOG_INFO(
+        DREAL_LOG_DEBUG(
             "ContractorWorklistApproxFixpoint(): pruning successful, adding to "
             "worklist.");
         UpdateWorklist(cs->output(), input_to_contractors_, &next_worklist);
       }
     }
     worklist = next_worklist;
-    next_worklist.clear();
+    next_worklist.reset();
   }
-  DREAL_LOG_INFO("ContractorWorklistApproxFixpoint(): Done");
+  DREAL_LOG_DEBUG("ContractorWorklistApproxFixpoint(): Done");
+}
+
+const std::vector<Contractor>& ContractorWorklistApproxFixpoint::contractors()
+    const {
+  return contractors_;
 }
 
 }  // namespace dreal

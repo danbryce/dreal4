@@ -94,8 +94,13 @@ shared_ptr<ContractorFixpoint> to_fixpoint(const Contractor& contractor) {
 }
 shared_ptr<ContractorWorklistFixpoint> to_worklist_fixpoint(
     const Contractor& contractor) {
-  DREAL_ASSERT(is_fixpoint(contractor));
+  DREAL_ASSERT(is_worklist_fixpoint(contractor));
   return static_pointer_cast<ContractorWorklistFixpoint>(contractor.ptr_);
+}
+shared_ptr<ContractorWorklistApproxFixpoint> to_worklist_approx_fixpoint(
+    const Contractor& contractor) {
+  DREAL_ASSERT(is_worklist_approx_fixpoint(contractor));
+  return static_pointer_cast<ContractorWorklistApproxFixpoint>(contractor.ptr_);
 }
 shared_ptr<ContractorJoin> to_join(const Contractor& contractor) {
   DREAL_ASSERT(is_join(contractor));

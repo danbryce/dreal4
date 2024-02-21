@@ -81,7 +81,8 @@ void MctsNode::evaluate(TimerGuard& eval_timer_guard,
 
       // Set the contractor_status box to this.box_
       delta_sat_box_ = cs->mutable_box();
-      DREAL_LOG_INFO("IcpMcts::evalute Found a delta-box:\n{}", delta_sat_box_);
+      DREAL_LOG_DEBUG("IcpMcts::evalute Found a delta-box:\n{}",
+                      delta_sat_box_);
     }
     eval_timer_guard.pause();
   }
@@ -194,7 +195,7 @@ double MctsNode::simulate_box(
   int depth = 0;
   while (!candidates.empty() && num_to_assign > 0) {
     num_to_assign--;
-    DREAL_LOG_INFO("IcpMCTS:simulate_box(): depth = {}", depth);
+    DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): depth = {}", depth);
     depth++;
     vector<Box> next_candidates;
     for (auto candidate = candidates.begin(); candidate != candidates.end();
@@ -272,7 +273,8 @@ double MctsNode::simulate_box(
             // Prune using the assignment
             // prune_timer_guard.resume();
             int& branching_point = cs->mutable_branching_point();
-            branching_point = v.get_id() - 1;
+            branching_point = v_id;
+            // v.get_id() - 1;
           }
           point_box = next_candidate;
 
@@ -406,8 +408,8 @@ void MctsNode::backpropagate(double wins) {
     for (auto child : children_) {
       if (child->delta_sat()) {
         delta_sat_box_ = child->delta_sat_box_;
-        DREAL_LOG_INFO("IcpMcts::backpropagate Found a delta-box:\n{}",
-                       delta_sat_box_);
+        DREAL_LOG_DEBUG("IcpMcts::backpropagate Found a delta-box:\n{}",
+                        delta_sat_box_);
       }
     }
   }
@@ -432,10 +434,11 @@ bool MctsNode::terminal() { return terminal_; }
 IcpMcts::IcpMcts(const Config& config) : IcpSeq{config} {}
 
 bool IcpMcts::CheckSat(const Contractor& contractor,
+
                        const vector<FormulaEvaluator>& formula_evaluators,
                        ContractorStatus* const cs) {
   static IcpStat stat{DREAL_LOG_INFO_ENABLED};
-  DREAL_LOG_INFO("IcpMcts::CheckSat()");
+  DREAL_LOG_DEBUG("IcpMcts::CheckSat()");
 
   TimerGuard prune_timer_guard(&stat.timer_prune_, stat.enabled(),
                                false /* start_timer */);
@@ -460,24 +463,29 @@ bool IcpMcts::CheckSat(const Contractor& contractor,
   // std::random_device rd;
   std::default_random_engine rnd{seed};
 
-  root->simulate(formula_evaluators, cs, contractor, eval_timer_guard,
+  const Contractor heuristic_contractor = static_cast<const Contractor>(
+      make_heuristic_contractor(contractor).value());
+
+  root->simulate(formula_evaluators, cs, heuristic_contractor, eval_timer_guard,
                  prune_timer_guard, config(), stat, rnd);
 
   while (!(root->unsat() || root->delta_sat() || root->sat())) {
     DREAL_LOG_DEBUG("[");
-    MctsBP(root, formula_evaluators, cs, contractor, branch_timer_guard,
-           eval_timer_guard, prune_timer_guard, stat, rnd);
+    MctsBP(root, formula_evaluators, cs, contractor, heuristic_contractor
+
+           ,
+           branch_timer_guard, eval_timer_guard, prune_timer_guard, stat, rnd);
     DREAL_LOG_DEBUG("]");
   }
-  DREAL_LOG_INFO("IcpMCTS::CheckSAT, result = {}", root->delta_sat_box());
+  DREAL_LOG_DEBUG("IcpMCTS::CheckSAT, result = {}", root->delta_sat_box());
   bool rvalue = !root->unsat();
   if (rvalue) {
     cs->mutable_box() = root->delta_sat_box();
   }
 
   delete root;
-  DREAL_LOG_INFO("IcpMCTS::CheckSAT, result = {}", rvalue);
-  DREAL_LOG_INFO("IcpMCTS::CheckSAT, result = {}", cs->mutable_box());
+  DREAL_LOG_DEBUG("IcpMCTS::CheckSAT, result = {}", rvalue);
+  DREAL_LOG_DEBUG("IcpMCTS::CheckSAT, result = {}", cs->mutable_box());
   return rvalue;
 }
 
@@ -486,13 +494,13 @@ optional<Contractor> IcpMcts::make_heuristic_contractor(
   switch (contractor.kind()) {
     case Contractor::Kind::FIXPOINT:
       // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
-      return make_contractor_fixpoint(TerminationCondition(0.1),
-                                      to_fixpoint(contractor)->contractors(),
-                                      config());
+      return make_contractor_worklist_approx_fixpoint(
+          TerminationCondition(0.1), to_fixpoint(contractor)->contractors(),
+          config());
     case Contractor::Kind::WORKLIST_FIXPOINT:
       // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
       return make_contractor_worklist_approx_fixpoint(
-          TerminationCondition(0.5),
+          TerminationCondition(0.1),
           to_worklist_fixpoint(contractor)->contractors(), config());
 
     default:
@@ -505,13 +513,11 @@ optional<Contractor> IcpMcts::make_heuristic_contractor(
 double IcpMcts::MctsBP(MctsNode* node,
                        const vector<FormulaEvaluator>& formula_evaluators,
                        ContractorStatus* const cs, const Contractor& contractor,
+                       const Contractor& heuristic_contractor,
                        TimerGuard& branch_timer_guard,
                        TimerGuard& eval_timer_guard,
                        TimerGuard& prune_timer_guard, IcpStat& stat,
                        std::default_random_engine& rnd) {
-  const Contractor heuristic_contractor = static_cast<const Contractor>(
-      make_heuristic_contractor(contractor).value());
-
   double wins = 0;
   if (!node->terminal()) {
     if (node->children().empty()) {
@@ -521,7 +527,7 @@ double IcpMcts::MctsBP(MctsNode* node,
                        eval_timer_guard, prune_timer_guard, config(), stat);
 
       if (expanded) {
-        DREAL_LOG_INFO("X");
+        DREAL_LOG_DEBUG("X");
         MctsNode* child = node->select();
         wins = child->simulate(formula_evaluators, cs, heuristic_contractor,
                                eval_timer_guard, prune_timer_guard, config(),
@@ -536,9 +542,9 @@ double IcpMcts::MctsBP(MctsNode* node,
       MctsNode* child = node->select();
       DREAL_LOG_DEBUG("Select child: {}\n{}", child->index(), child->box());
       DREAL_LOG_DEBUG(".");
-      wins =
-          MctsBP(child, formula_evaluators, cs, contractor, branch_timer_guard,
-                 eval_timer_guard, prune_timer_guard, stat, rnd);
+      wins = MctsBP(child, formula_evaluators, cs, contractor,
+                    heuristic_contractor, branch_timer_guard, eval_timer_guard,
+                    prune_timer_guard, stat, rnd);
     }
   } else {
     // Node is decided
