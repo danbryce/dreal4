@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "dreal/util/assert.h"
+#include "dreal/util/ibex_converter.h"
 #include "dreal/util/logging.h"
 #include "dreal/util/math.h"
 #include "dreal/util/stat.h"
@@ -52,6 +53,9 @@ class ContractorIbexFwdbwdStat : public Stat {
               "Total time spent in Pruning", "Pruning level",
               timer_pruning_.seconds());
       }
+      print(cout, "{:<45} @ {:<20} = {:>15f} sec\n",
+            "Total time spent in making constraints", "Pruning level",
+            timer_make_constraint_.seconds());
     }
   }
 
@@ -59,6 +63,7 @@ class ContractorIbexFwdbwdStat : public Stat {
   int num_pruning_{0};
 
   Timer timer_pruning_;
+  Timer timer_make_constraint_;
 };
 }  // namespace
 
@@ -71,6 +76,9 @@ ContractorIbexFwdbwd::ContractorIbexFwdbwd(Formula f, const Box& box,
                      config},
       f_{std::move(f)},
       ibex_converter_{box} {
+  static ContractorIbexFwdbwdStat stat{DREAL_LOG_INFO_ENABLED};
+  TimerGuard timer_guard(&stat.timer_make_constraint_, stat.enabled(), true);
+  timer_guard.resume();
   // Build num_ctr and ctc_.
   expr_ctr_.reset(ibex_converter_.Convert(f_));
   if (expr_ctr_) {
@@ -84,6 +92,7 @@ ContractorIbexFwdbwd::ContractorIbexFwdbwd(Formula f, const Box& box,
   } else {
     is_dummy_ = true;
   }
+  timer_guard.pause();
 }
 
 void ContractorIbexFwdbwd::Prune(ContractorStatus* cs) const {

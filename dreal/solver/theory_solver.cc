@@ -102,6 +102,12 @@ class TheorySolverStat : public Stat {
       print(cout, "{:<45} @ {:<20} = {:>15f} sec\n",
             "Total time spent in BuildContractor", "Theory level",
             timer_build_contractor_.seconds());
+      print(cout, "{:<45} @ {:<20} = {:>15f} sec\n",
+            "Total time spent in Filtering Assertions", "Theory level",
+            timer_filter_assertions_.seconds());
+      print(cout, "{:<45} @ {:<20} = {:>15f} sec\n",
+            "Total time spent building sub contractors", "Theory level",
+            timer_build_sub_contractor_.seconds());
     }
   }
 
@@ -109,6 +115,8 @@ class TheorySolverStat : public Stat {
 
   Timer timer_check_sat_;
   Timer timer_build_contractor_;
+  Timer timer_filter_assertions_;
+  Timer timer_build_sub_contractor_;
 
  private:
   std::atomic<int> num_check_sat_{0};
@@ -119,6 +127,8 @@ class TheorySolverStat : public Stat {
 optional<Contractor> TheorySolver::BuildContractor(
     const vector<Formula>& assertions,
     ContractorStatus* const contractor_status) {
+  static TheorySolverStat stat{DREAL_LOG_INFO_ENABLED};
+
   Box& box = contractor_status->mutable_box();
   if (assertions.empty()) {
     return make_contractor_integer(box, config_);
@@ -127,8 +137,14 @@ optional<Contractor> TheorySolver::BuildContractor(
                   box);
   vector<Contractor> ctcs;
   Box old_box;
+  TimerGuard filter_assertions_guard(&stat.timer_filter_assertions_,
+                                     stat.enabled(), false /* start_timer*/);
+  TimerGuard build_sub_contractor_guard(&stat.timer_build_sub_contractor_,
+                                        stat.enabled(), false /* start_timer*/);
   for (const Formula& f : assertions) {
     old_box = box;
+
+    filter_assertions_guard.resume();
     switch (FilterAssertion(f, &box)) {
       case FilterAssertionResult::NotFiltered:
         DREAL_LOG_TRACE("TheorySolver::BuildContractor: {} - Not Filtered.", f);
@@ -155,6 +171,8 @@ optional<Contractor> TheorySolver::BuildContractor(
       case FilterAssertionResult::FilteredWithoutChange:
         continue;
     }
+    filter_assertions_guard.pause();
+    build_sub_contractor_guard.resume();
     auto it = contractor_cache_.find(f);
     if (it == contractor_cache_.end()) {
       // There is no contractor for `f`, build one.
@@ -179,6 +197,7 @@ optional<Contractor> TheorySolver::BuildContractor(
       // Cache hit!
       ctcs.emplace_back(it->second);
     }
+    build_sub_contractor_guard.pause();
   }
   // Add integer contractor.
   ctcs.push_back(make_contractor_integer(box, config_));
