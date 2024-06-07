@@ -231,6 +231,15 @@ void MainProgram::AddOptions() {
            1 /* Number of args expected. */,
            0 /* Delimiter if expecting multiple args. */,
            "Set a seed for the random number generator.", "--random-seed");
+
+  opt_.add("",     // Default.
+           false,  // Required?
+           -1,     // Number of args expected.
+           ',',    // Delimiter if expecting multiple args.
+           "Preferred Variables for MCTS playouts.",  // Help description.
+           "-p",                                      // Flag token.
+           "--preferred"                              // Flag token.
+  );
 }
 
 bool MainProgram::ValidateOptions() {
@@ -426,6 +435,32 @@ void MainProgram::ExtractOptions() {
     config_.mutable_random_seed().set_from_command_line(random_seed);
     DREAL_LOG_DEBUG("MainProgram::ExtractOptions() --random-seed = {}",
                     config_.random_seed());
+  }
+
+  // --preferred
+  if (opt_.isSet("--preferred")) {
+    std::vector<std::vector<std::string>> preferred{};
+    opt_.get("--preferred")->getMultiStrings(preferred);
+
+    std::unordered_set<std::string> merged_preferred{};
+    size_t total_size{0};
+    for (auto const& items : preferred) {
+      total_size += items.size();
+    }
+
+    // merged_preferred.reserve(total_size);
+    for (auto& items : preferred) {
+      std::move(items.begin(), items.end(),
+                std::inserter(merged_preferred, merged_preferred.end()));
+    }
+
+    config_.mutable_preferred().set_from_command_line(merged_preferred);
+    std::string preferred_str;
+    for (const auto& piece : config_.preferred()) preferred_str += piece + ",";
+    preferred_str.pop_back();  // remove last ","
+
+    DREAL_LOG_DEBUG("MainProgram::ExtractOptions() --preferred = {}",
+                    preferred_str);
   }
 }
 

@@ -120,6 +120,13 @@ OptionValue<bool>& Config::mutable_mcts() { return mcts_; }
 bool Config::unsat_core() const { return unsat_core_.get(); }
 OptionValue<bool>& Config::mutable_unsat_core() { return unsat_core_; }
 
+std::unordered_set<std::string> Config::preferred() const {
+  return preferred_.get();
+}
+OptionValue<std::unordered_set<std::string> >& Config::mutable_preferred() {
+  return preferred_;
+}
+
 std::ostream& operator<<(std::ostream& os,
                          const Config::SatDefaultPhase& sat_default_phase) {
   switch (sat_default_phase) {

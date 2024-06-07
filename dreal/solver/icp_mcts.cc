@@ -176,7 +176,7 @@ double MctsNode::simulate_box(
     TimerGuard& eval_timer_guard, TimerGuard& prune_timer_guard,
     const Config& config, IcpStat& stat, std::default_random_engine& rnd) {
   int num_candidates = 10;
-  int num_samples = 3;
+  // int num_samples = 3;
   vector<Box> candidates;
   Box& point_box{cs->mutable_box()};
   candidates.push_back(sim_box);
@@ -198,140 +198,148 @@ double MctsNode::simulate_box(
     DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): depth = {}", depth);
     depth++;
     vector<Box> next_candidates;
-    for (auto candidate = candidates.begin(); candidate != candidates.end();
-         candidate++) {
-      for (int i = 0; i < num_samples; i++) {
-        Box next_candidate{*candidate};
-        Box::IntervalVector& values = next_candidate.mutable_interval_vector();
 
-        double max_diam;
-        int v_id;
-        tie(max_diam, v_id) = next_candidate.FirstDiamGT(config.precision());
-        if (v_id > -1 && max_diam > config.precision()) {
-          Variable v = next_candidate.variables()[v_id];
-          Box::Interval& interval = values[v_id];
+    std::uniform_int_distribution<int> candidate_dist(0, candidates.size() - 1);
 
-          if (!interval.is_degenerated() &&
-              interval.diam() >= config.precision() &&
-              !(interval.lb() == interval.mid() ||
-                interval.mid() == interval.ub())) {
-            // Pick value for variable
+    // for (auto candidate = candidates.begin(); candidate != candidates.end();
+    //      candidate++) {
+    for (int can = 0; can < num_candidates; can++) {
+      // Sample candidate to use with replacement
+      Box candidate = candidates[candidate_dist(rnd)];
 
-            // random library supports only sampling from 0 to
-            // std::numeric_limits<double>::max(), in the worst case, need to
-            // sample lower: [-std::numeric_limits<double>::max(), 9) or
-            // upper: [0, std::numeric_limits<double>::max()] here we'll
-            // sample from [lb, midpoint] or [midpoint, ub] after choosing the
-            // half interval to sample.
+      // for (int i = 0; i < num_samples; i++) {
+      Box next_candidate{candidate};
+      Box::IntervalVector& values = next_candidate.mutable_interval_vector();
 
-            std::bernoulli_distribution d(0.5);
-            bool sample_lower = d(rnd);
-            double lower =
-                std::max(interval.lb(), -std::numeric_limits<double>::max());
-            double upper =
-                std::min(std::numeric_limits<double>::max(), interval.ub());
-            double midpoint = interval.mid();
-            // double diam = upper - lower;
+      double max_diam;
+      int v_id;
 
-            double r;
-            if (sample_lower) {
-              assert(midpoint - lower <= std::numeric_limits<double>::max());
-              assert(midpoint - lower > 0);
-              std::uniform_real_distribution<double> dist(lower, midpoint);
-              r = dist(rnd);
+      tie(max_diam, v_id) =
+          next_candidate.FirstDiamGT(config.precision(), config.preferred());
+      if (v_id > -1 && max_diam > config.precision()) {
+        Variable v = next_candidate.variables()[v_id];
+        Box::Interval& interval = values[v_id];
 
-              if (r == -std::numeric_limits<double>::infinity()) {
-                r = -std::numeric_limits<double>::max();
-              }
-            } else {
-              assert(upper - midpoint <= std::numeric_limits<double>::max());
-              assert(upper - midpoint > 0);
-              std::uniform_real_distribution<double> dist(midpoint, upper);
+        if (!interval.is_degenerated() &&
+            interval.diam() >= config.precision() &&
+            !(interval.lb() == interval.mid() ||
+              interval.mid() == interval.ub())) {
+          // Pick value for variable
 
-              r = dist(rnd);
+          // random library supports only sampling from 0 to
+          // std::numeric_limits<double>::max(), in the worst case, need to
+          // sample lower: [-std::numeric_limits<double>::max(), 9) or
+          // upper: [0, std::numeric_limits<double>::max()] here we'll
+          // sample from [lb, midpoint] or [midpoint, ub] after choosing the
+          // half interval to sample.
 
-              if (r == std::numeric_limits<double>::infinity()) {
-                r = std::numeric_limits<double>::max();
-              }
-            }
+          std::bernoulli_distribution d(0.5);
+          bool sample_lower = d(rnd);
+          double lower =
+              std::max(interval.lb(), -std::numeric_limits<double>::max());
+          double upper =
+              std::min(std::numeric_limits<double>::max(), interval.ub());
+          double midpoint = interval.mid();
+          // double diam = upper - lower;
 
-            DREAL_LOG_DEBUG(
-                "IcpMcts::simulate_box() sampling {}:{} = {} for:\n{}", v,
-                interval, r, next_candidate);
-            double noise_factor = 0.49;
+          double r;
+          if (sample_lower) {
+            assert(midpoint - lower <= std::numeric_limits<double>::max());
+            assert(midpoint - lower > 0);
+            std::uniform_real_distribution<double> dist(lower, midpoint);
+            r = dist(rnd);
 
-            double noise = std::min(config.precision() * noise_factor,
-                                    interval.diam() * noise_factor);
-            Box::Interval new_interval{std::max(interval.lb(), r - noise),
-                                       std::min(interval.ub(), r + noise)};
-            interval = interval & new_interval;
-            values[v_id] = interval;
-            DREAL_LOG_DEBUG(
-                "IcpMcts::simulate_box() set interval {}:{} = {} for:\n{}", v,
-                interval, r, next_candidate);
-
-            // Prune using the assignment
-            // prune_timer_guard.resume();
-            int& branching_point = cs->mutable_branching_point();
-            branching_point = v_id;
-            // v.get_id() - 1;
-          }
-          point_box = next_candidate;
-
-          contractor.Prune(cs);
-          prune_timer_guard.pause();
-          stat.num_sim_prune_++;
-
-          next_candidate = cs->box();
-
-          if (!next_candidate.empty()) {
-            eval_timer_guard.resume();
-            optional<DynamicBitset> evaluation_result = EvaluateBox(
-                formula_evaluators, next_candidate, config.precision(), cs);
-            eval_timer_guard.pause();
-
-            if (!evaluation_result) {
-              // unsat
-            } else if (evaluation_result->none()) {
-              // delta sat
-              // DREAL_LOG_INFO(
-              //     "IcpMcts::simulate_box(), evaluation_result->none(),  Found
-              //     " "a delta-box:\n{}", next_candidate);
-              delta_sat_box_ = std::move(next_candidate);
-              delta_sat_ = true;
-              terminal_ = true;
-              // DREAL_LOG_INFO(
-              //     "IcpMcts::simulate_box(), evaluation_result->none(), Found
-              //     a " "delta-box:\n{}", delta_sat_box_);
-              break;
-
-            } else {
-              // still unknown
-              next_candidates.push_back(next_candidate);
+            if (r == -std::numeric_limits<double>::infinity()) {
+              r = -std::numeric_limits<double>::max();
             }
           } else {
-            // unsat
+            assert(upper - midpoint <= std::numeric_limits<double>::max());
+            assert(upper - midpoint > 0);
+            std::uniform_real_distribution<double> dist(midpoint, upper);
+
+            r = dist(rnd);
+
+            if (r == std::numeric_limits<double>::infinity()) {
+              r = std::numeric_limits<double>::max();
+            }
           }
 
-        } else {
-          // DREAL_LOG_INFO(
-          //     "IcpMcts::simulate_box() Found a delta-box (candidate):\n{}",
-          //     *candidate);
-          // DREAL_LOG_INFO(
-          //     "IcpMcts::simulate_box() Found a delta-box
-          //     (next_candidate):\n{}", next_candidate);
-          delta_sat_box_ = next_candidate;
-          delta_sat_ = true;
-          terminal_ = true;
-          // DREAL_LOG_INFO(
-          //     "IcpMcts::simulate_box() Found a delta-box
-          //     (delta_sat_box_):\n{}", delta_sat_box_);
-          break;
+          DREAL_LOG_DEBUG(
+              "IcpMcts::simulate_box() sampling {}:{} ~ {} for:\n{}", v,
+              interval, r, next_candidate);
+          double noise_factor = 0.49;
+
+          double noise = std::min(config.precision() * noise_factor,
+                                  interval.diam() * noise_factor);
+          Box::Interval new_interval{std::max(interval.lb(), r - noise),
+                                     std::min(interval.ub(), r + noise)};
+          interval = interval & new_interval;
+          values[v_id] = interval;
+          DREAL_LOG_DEBUG(
+              "IcpMcts::simulate_box() set interval {}:{} := {} for:\n{}", v,
+              interval, r, next_candidate);
+
+          // Prune using the assignment
+          // prune_timer_guard.resume();
+          int& branching_point = cs->mutable_branching_point();
+          branching_point = v_id;
+          // v.get_id() - 1;
         }
-      }
-      if (delta_sat_) {
+        point_box = next_candidate;
+
+        contractor.Prune(cs);
+        prune_timer_guard.pause();
+        stat.num_sim_prune_++;
+
+        next_candidate = cs->box();
+
+        if (!next_candidate.empty()) {
+          eval_timer_guard.resume();
+          optional<DynamicBitset> evaluation_result = EvaluateBox(
+              formula_evaluators, next_candidate, config.precision(), cs);
+          eval_timer_guard.pause();
+
+          if (!evaluation_result) {
+            // unsat
+          } else if (evaluation_result->none()) {
+            // delta sat
+            // DREAL_LOG_INFO(
+            //     "IcpMcts::simulate_box(), evaluation_result->none(),  Found
+            //     " "a delta-box:\n{}", next_candidate);
+            delta_sat_box_ = std::move(next_candidate);
+            delta_sat_ = true;
+            terminal_ = true;
+            // DREAL_LOG_INFO(
+            //     "IcpMcts::simulate_box(), evaluation_result->none(), Found
+            //     a " "delta-box:\n{}", delta_sat_box_);
+            break;
+
+          } else {
+            // still unknown
+            next_candidates.push_back(next_candidate);
+          }
+        } else {
+          // unsat
+        }
+
+      } else {
+        // DREAL_LOG_INFO(
+        //     "IcpMcts::simulate_box() Found a delta-box (candidate):\n{}",
+        //     *candidate);
+        // DREAL_LOG_INFO(
+        //     "IcpMcts::simulate_box() Found a delta-box
+        //     (next_candidate):\n{}", next_candidate);
+        delta_sat_box_ = next_candidate;
+        delta_sat_ = true;
+        terminal_ = true;
+        // DREAL_LOG_INFO(
+        //     "IcpMcts::simulate_box() Found a delta-box
+        //     (delta_sat_box_):\n{}", delta_sat_box_);
         break;
       }
+    }
+    if (delta_sat_) {
+      break;
     }
 
     candidates.clear();
@@ -495,17 +503,17 @@ optional<Contractor> IcpMcts::make_heuristic_contractor(
     case Contractor::Kind::FIXPOINT:
       // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
       return make_contractor_worklist_approx_fixpoint(
-          TerminationCondition(0.1), to_fixpoint(contractor)->contractors(),
+          TerminationCondition(0.05), to_fixpoint(contractor)->contractors(),
           config());
     case Contractor::Kind::WORKLIST_FIXPOINT:
       // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
       return make_contractor_worklist_approx_fixpoint(
-          TerminationCondition(0.1),
+          TerminationCondition(0.05),
           to_worklist_fixpoint(contractor)->contractors(), config());
 
     default:
       vector<Contractor> ctcs;
-      return make_contractor_fixpoint(TerminationCondition(0.1), ctcs,
+      return make_contractor_fixpoint(TerminationCondition(0.05), ctcs,
                                       config());
   }
 }

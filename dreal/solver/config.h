@@ -161,6 +161,18 @@ class Config {
   /// Returns a mutable OptionValue for `unsat-core`.
   OptionValue<bool>& mutable_unsat_core();
 
+  /// Returns preferred variables for MCTS playouts.
+  std::unordered_set<std::string> preferred() const;
+
+  /// Returns a mutable OptionValue for `preferred`.
+  OptionValue<std::unordered_set<std::string>>& mutable_preferred();
+
+  // /// Returns indices of preferred variables for MCTS playouts.
+  // std::unordered_set<std::string> preferred_indices() const;
+
+  // /// Returns a mutable OptionValue for `preferred_indices`.
+  // OptionValue<std::unordered_set<std::string>>& mutable_preferred_indices();
+
   /// @}
 
   static constexpr double kDefaultPrecision{0.001};
@@ -183,6 +195,7 @@ class Config {
   OptionValue<bool> smtlib2_compliant_{false};
   OptionValue<bool> mcts_{false};
   OptionValue<bool> unsat_core_{false};
+  OptionValue<std::unordered_set<std::string>> preferred_{{}};
 
   // --------------------------------------------------------------------------
   // NLopt options (stopping criteria)

@@ -37,6 +37,7 @@ using std::numeric_limits;
 using std::ostream;
 using std::pair;
 using std::unordered_map;
+using std::unordered_set;
 using std::vector;
 
 namespace dreal {
@@ -172,15 +173,24 @@ pair<double, int> Box::MinDiamGT(double threshold) const {
   return make_pair(min_diam, idx);
 }
 
-pair<double, int> Box::FirstDiamGT(double threshold) const {
+pair<double, int> Box::FirstDiamGT(
+    double threshold, const unordered_set<std::string> preferred) const {
   double min_diam{std::numeric_limits<double>::max()};
   int idx{-1};
+  bool is_preferred = false;
   for (size_t i{0}; i < variables_->size(); ++i) {
     const double diam_i{values_[i].diam()};
-    if ((diam_i < min_diam && values_[i].is_bisectable() &&
-         diam_i > threshold) ||
-        (min_diam == std::numeric_limits<double>::max() &&
-         diam_i == POS_INFINITY)) {  // Allow infinite intervals to be split
+    // bool is_i_preferred = preferred.find(i) != preferred.end();
+    bool is_i_preferred =
+        preferred.find((*variables_)[i].get_name()) != preferred.end();
+    if ((!is_preferred && is_i_preferred) ||  // use i if it's preferred and
+                                              // haven't found preferred yet
+        ((is_preferred == is_i_preferred) &&  // same preference
+         ((diam_i < min_diam && values_[i].is_bisectable() &&
+           diam_i > threshold) ||
+          (min_diam == std::numeric_limits<double>::max() &&
+           diam_i == POS_INFINITY)))) {  // Allow infinite intervals to be split
+      is_preferred = is_i_preferred;
       min_diam = diam_i;
       idx = i;
       // return make_pair(min_diam, idx);

@@ -18,12 +18,15 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "./ibex.h"
 
 #include "dreal/symbolic/symbolic.h"
+
+using std::unordered_set;
 
 namespace dreal {
 
@@ -109,7 +112,9 @@ class Box {
 
   /// Returns the diameter of the first variable in box greater than threshold
   /// and the associated index .
-  std::pair<double, int> FirstDiamGT(double threshold) const;
+  std::pair<double, int> FirstDiamGT(
+      double threshold, const unordered_set<std::string> preferred =
+                            unordered_set<std::string>()) const;
 
   /// Bisects the box at @p i -th dimension.
   /// @throws std::runtime if @p i -th dimension is not bisectable.
