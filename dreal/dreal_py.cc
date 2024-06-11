@@ -737,6 +737,14 @@ PYBIND11_MODULE(_dreal_py, m) {
                     [](Config& self, const bool unsat_core) {
                       self.mutable_unsat_core() = unsat_core;
                     })
+      .def_property("preferred", &Config::preferred,
+                    [](Config& self, const std::vector<std::string> preferred) {
+                      std::unordered_set<std::string> preferred_set{};
+                      std::move(
+                          preferred.begin(), preferred.end(),
+                          std::inserter(preferred_set, preferred_set.end()));
+                      self.mutable_preferred() = preferred_set;
+                    })
       .def("__str__",
            [](const Config& self) { return fmt::format("{}", self); });
 
