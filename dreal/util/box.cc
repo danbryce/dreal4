@@ -183,18 +183,44 @@ pair<double, int> Box::FirstDiamGT(
     // bool is_i_preferred = preferred.find(i) != preferred.end();
     bool is_i_preferred =
         preferred.find((*variables_)[i].get_name()) != preferred.end();
-    if ((!is_preferred && is_i_preferred) ||  // use i if it's preferred and
-                                              // haven't found preferred yet
-        ((is_preferred == is_i_preferred) &&  // same preference
-         ((diam_i < min_diam && values_[i].is_bisectable() &&
-           diam_i > threshold) ||
-          (min_diam == std::numeric_limits<double>::max() &&
-           diam_i == POS_INFINITY)))) {  // Allow infinite intervals to be split
+
+    bool can_split = (diam_i > threshold) &&
+                     (values_[i].is_bisectable() ||
+                      (min_diam == std::numeric_limits<double>::max() &&
+                       diam_i == POS_INFINITY));
+    // If haven't found a suitable variable yet, anything works
+    if (idx == -1 && can_split) {
       is_preferred = is_i_preferred;
       min_diam = diam_i;
       idx = i;
-      // return make_pair(min_diam, idx);
     }
+    // variable is preferred and either first preferred or has smaller width
+    else if (is_i_preferred && can_split &&
+             (!is_preferred || diam_i < min_diam)) {
+      is_preferred = is_i_preferred;
+      min_diam = diam_i;
+      idx = i;
+    }
+    // variable is not preferred and has smaller width
+    else if (!is_preferred && can_split && diam_i < min_diam) {
+      is_preferred = is_i_preferred;
+      min_diam = diam_i;
+      idx = i;
+    }
+
+    // if ((!is_preferred && is_i_preferred) ||  // use i if it's preferred and
+    //                                           // haven't found preferred yet
+    //     ((is_preferred == is_i_preferred) &&  // same preference
+    //      ((diam_i < min_diam && values_[i].is_bisectable() &&
+    //        diam_i > threshold) ||
+    //       (min_diam == std::numeric_limits<double>::max() &&
+    //        diam_i == POS_INFINITY)))) {  // Allow infinite intervals to be
+    //        split
+    //   is_preferred = is_i_preferred;
+    //   min_diam = diam_i;
+    //   idx = i;
+    //   // return make_pair(min_diam, idx);
+    // }
   }
   return make_pair(min_diam, idx);
 }

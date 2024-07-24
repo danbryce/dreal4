@@ -175,7 +175,7 @@ double MctsNode::simulate_box(
     ContractorStatus* const cs, const Contractor& contractor,
     TimerGuard& eval_timer_guard, TimerGuard& prune_timer_guard,
     const Config& config, IcpStat& stat, std::default_random_engine& rnd) {
-  int num_candidates = 10;
+  int num_candidates = 5;
   // int num_samples = 3;
   vector<Box> candidates;
   Box& point_box{cs->mutable_box()};
@@ -195,7 +195,8 @@ double MctsNode::simulate_box(
   int depth = 0;
   while (!candidates.empty() && num_to_assign > 0) {
     num_to_assign--;
-    DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): depth = {}", depth);
+    // DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): depth = {}, delta_sat_ = {}",
+    //                 depth, delta_sat_);
     depth++;
     vector<Box> next_candidates;
 
@@ -204,6 +205,9 @@ double MctsNode::simulate_box(
     // for (auto candidate = candidates.begin(); candidate != candidates.end();
     //      candidate++) {
     for (int can = 0; can < num_candidates; can++) {
+      // DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): candidate = {}, delta_sat_ = {}",
+      //                 can, delta_sat_);
+
       // Sample candidate to use with replacement
       Box candidate = candidates[candidate_dist(rnd)];
 
@@ -216,6 +220,9 @@ double MctsNode::simulate_box(
 
       tie(max_diam, v_id) =
           next_candidate.FirstDiamGT(config.precision(), config.preferred());
+      // DREAL_LOG_DEBUG(
+      //     "IcpMCTS:simulate_box(): v_id = {}, candidate.max_diam = {}, ", v_id,
+      //     max_diam);
       if (v_id > -1 && max_diam > config.precision()) {
         Variable v = next_candidate.variables()[v_id];
         Box::Interval& interval = values[v_id];
@@ -309,9 +316,9 @@ double MctsNode::simulate_box(
             delta_sat_box_ = std::move(next_candidate);
             delta_sat_ = true;
             terminal_ = true;
-            // DREAL_LOG_INFO(
-            //     "IcpMcts::simulate_box(), evaluation_result->none(), Found
-            //     a " "delta-box:\n{}", delta_sat_box_);
+            // DREAL_LOG_INFO("IcpMcts::simulate_box(),
+            // evaluation_result->none(), Found
+            //     a delta-box");
             break;
 
           } else {
@@ -339,6 +346,10 @@ double MctsNode::simulate_box(
       }
     }
     if (delta_sat_) {
+      // DREAL_LOG_DEBUG(
+      //     "IcpMCTS:simulate_box(): breaking candidate simulation, delta_sat_ = "
+      //     "{}",
+      //     delta_sat_);
       break;
     }
 
@@ -358,9 +369,15 @@ double MctsNode::simulate_box(
     }
     next_candidates.clear();
     if (delta_sat_) {
+      // DREAL_LOG_DEBUG(
+      //     "IcpMCTS:simulate_box(): breaking variable selection, delta_sat_ = "
+      //     "{}",
+      //     delta_sat_);
       break;
     }
   }
+  // DREAL_LOG_DEBUG("IcpMcts::simulate_box() exiting, delta_sat_ = {}",
+  //                 delta_sat_);
 
   if (num_to_assign > 0) {
     return static_cast<double>(depth) / static_cast<double>(num_to_assign);
