@@ -205,7 +205,8 @@ double MctsNode::simulate_box(
     // for (auto candidate = candidates.begin(); candidate != candidates.end();
     //      candidate++) {
     for (int can = 0; can < num_candidates; can++) {
-      // DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): candidate = {}, delta_sat_ = {}",
+      // DREAL_LOG_DEBUG("IcpMCTS:simulate_box(): candidate = {}, delta_sat_ =
+      // {}",
       //                 can, delta_sat_);
 
       // Sample candidate to use with replacement
@@ -221,14 +222,15 @@ double MctsNode::simulate_box(
       tie(max_diam, v_id) =
           next_candidate.FirstDiamGT(config.precision(), config.preferred());
       // DREAL_LOG_DEBUG(
-      //     "IcpMCTS:simulate_box(): v_id = {}, candidate.max_diam = {}, ", v_id,
-      //     max_diam);
-      if (v_id > -1 && max_diam > config.precision()) {
+      //     "IcpMCTS:simulate_box(): v_id = {}, candidate.max_diam = {}, ",
+      //     v_id, max_diam);
+      if (v_id > -1  //&& max_diam > config.precision()
+      ) {
         Variable v = next_candidate.variables()[v_id];
         Box::Interval& interval = values[v_id];
 
         if (!interval.is_degenerated() &&
-            interval.diam() >= config.precision() &&
+            //interval.diam() >= config.precision() &&
             !(interval.lb() == interval.mid() ||
               interval.mid() == interval.ub())) {
           // Pick value for variable
@@ -272,8 +274,9 @@ double MctsNode::simulate_box(
           }
 
           DREAL_LOG_DEBUG(
-              "IcpMcts::simulate_box() sampling {}:{} ~ {} for:\n{}", v,
-              interval, r, next_candidate);
+              "IcpMcts::simulate_box() sampling {}:{} ~ {}, prior-diam: {}, "
+              "for:\n{}",
+              v, interval, r, interval.diam(), next_candidate);
           double noise_factor = 0.49;
 
           double noise = std::min(config.precision() * noise_factor,
@@ -283,8 +286,9 @@ double MctsNode::simulate_box(
           interval = interval & new_interval;
           values[v_id] = interval;
           DREAL_LOG_DEBUG(
-              "IcpMcts::simulate_box() set interval {}:{} := {} for:\n{}", v,
-              interval, r, next_candidate);
+              "IcpMcts::simulate_box() set interval {}:{} := {}, new-diam: {} "
+              "for:\n{}",
+              v, interval, r, interval.diam(), next_candidate);
 
           // Prune using the assignment
           // prune_timer_guard.resume();
@@ -347,7 +351,8 @@ double MctsNode::simulate_box(
     }
     if (delta_sat_) {
       // DREAL_LOG_DEBUG(
-      //     "IcpMCTS:simulate_box(): breaking candidate simulation, delta_sat_ = "
+      //     "IcpMCTS:simulate_box(): breaking candidate simulation, delta_sat_
+      //     = "
       //     "{}",
       //     delta_sat_);
       break;
@@ -370,7 +375,8 @@ double MctsNode::simulate_box(
     next_candidates.clear();
     if (delta_sat_) {
       // DREAL_LOG_DEBUG(
-      //     "IcpMCTS:simulate_box(): breaking variable selection, delta_sat_ = "
+      //     "IcpMCTS:simulate_box(): breaking variable selection, delta_sat_ =
+      //     "
       //     "{}",
       //     delta_sat_);
       break;
