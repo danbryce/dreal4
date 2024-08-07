@@ -185,7 +185,7 @@ pair<double, int> Box::FirstDiamGT(
     const double diam_i{values_[i].diam()};
 
     bool can_split =
-        (diam_i > threshold || (is_i_preferred && diam_i * 1e3 > threshold)) &&
+        (diam_i > threshold || (is_i_preferred && diam_i * 1e0 > threshold)) &&
         (values_[i].is_bisectable() ||
          (min_diam == std::numeric_limits<double>::max() &&
           diam_i == POS_INFINITY));
