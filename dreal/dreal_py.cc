@@ -745,6 +745,10 @@ PYBIND11_MODULE(_dreal_py, m) {
                           std::inserter(preferred_set, preferred_set.end()));
                       self.mutable_preferred() = preferred_set;
                     })
+      .def_property("random_seed", &Config::random_seed,
+                    [](Config& self, const uint32_t random_seed) {
+                      self.mutable_random_seed() = random_seed;
+                    })
       .def("__str__",
            [](const Config& self) { return fmt::format("{}", self); });
 
