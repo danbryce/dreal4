@@ -178,13 +178,14 @@ pair<double, int> Box::FirstDiamGT(
   double min_diam{std::numeric_limits<double>::max()};
   int idx{-1};
   bool is_preferred = false;
-  for (size_t i{0}; i < variables_->size(); ++i) {
+  for (int i{0}; i < static_cast<int>(variables_->size()); ++i) {
     bool is_i_preferred =
         preferred.find((*variables_)[i].get_name()) != preferred.end();
 
     const double diam_i{values_[i].diam()};
 
     bool can_split =
+        !values_[i].is_unbounded() &&
         (diam_i > threshold || (is_i_preferred && diam_i * 1e0 > threshold)) &&
         (values_[i].is_bisectable() ||
          (min_diam == std::numeric_limits<double>::max() &&
@@ -204,7 +205,8 @@ pair<double, int> Box::FirstDiamGT(
     }
     // variable is preferred and either first preferred or has smaller width
     else if (is_i_preferred && can_split &&
-             (!is_preferred || diam_i < min_diam)) {
+             (!is_preferred || (isinf(diam_i) && isinf(min_diam) && i < idx) ||
+              (!isinf(diam_i) && diam_i < min_diam))) {
       is_preferred = is_i_preferred;
       min_diam = diam_i;
       idx = i;
@@ -217,7 +219,9 @@ pair<double, int> Box::FirstDiamGT(
       idx = i;
       DREAL_LOG_DEBUG("box::FirstDiamGT() chose regular var");
     }
-
+    // DREAL_LOG_INFO("box::FirstDiamGT(): idx: {} min_diam: {}, is_preferred:
+    // {}",
+    //  idx, min_diam, is_preferred);
     // if ((!is_preferred && is_i_preferred) ||  // use i if it's preferred and
     //                                           // haven't found preferred yet
     //     ((is_preferred == is_i_preferred) &&  // same preference
@@ -232,6 +236,10 @@ pair<double, int> Box::FirstDiamGT(
     //   // return make_pair(min_diam, idx);
     // }
   }
+  // DREAL_LOG_INFO("Box:FirstDiamGT(): v_id = {}, candidate.max_diam = {}, ",
+  // idx,
+  //  min_diam);
+
   return make_pair(min_diam, idx);
 }
 

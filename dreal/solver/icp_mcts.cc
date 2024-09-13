@@ -222,7 +222,7 @@ double MctsNode::simulate_box(
       tie(max_diam, v_id) =
           next_candidate.FirstDiamGT(config.precision(), config.preferred());
       // DREAL_LOG_DEBUG(
-      //     "IcpMCTS:simulate_box(): v_id = {}, candidate.max_diam = {}, ",
+          //     "IcpMCTS:simulate_box(): v_id = {}, candidate.max_diam = {}, ",
       //     v_id, max_diam);
       if (v_id > -1  //&& max_diam > config.precision()
       ) {
@@ -230,7 +230,7 @@ double MctsNode::simulate_box(
         Box::Interval& interval = values[v_id];
 
         if (!interval.is_degenerated() &&
-            //interval.diam() >= config.precision() &&
+            // interval.diam() >= config.precision() &&
             !(interval.lb() == interval.mid() ||
               interval.mid() == interval.ub())) {
           // Pick value for variable
@@ -313,7 +313,7 @@ double MctsNode::simulate_box(
           if (!evaluation_result) {
             // unsat
           } else if (evaluation_result->none()) {
-            // delta sat
+            // delta sat after evaluation
             // DREAL_LOG_INFO(
             //     "IcpMcts::simulate_box(), evaluation_result->none(),  Found
             //     " "a delta-box:\n{}", next_candidate);
@@ -494,6 +494,8 @@ bool IcpMcts::CheckSat(const Contractor& contractor,
   // std::random_device rd;
   std::default_random_engine rnd{seed};
 
+  DREAL_LOG_DEBUG("Random Seed: {}", seed_counter);
+
   const Contractor heuristic_contractor = static_cast<const Contractor>(
       make_heuristic_contractor(contractor).value());
 
@@ -522,22 +524,24 @@ bool IcpMcts::CheckSat(const Contractor& contractor,
 
 optional<Contractor> IcpMcts::make_heuristic_contractor(
     const Contractor& contractor) {
+  const double contractor_improvement_threshold = 0.1;
   switch (contractor.kind()) {
     case Contractor::Kind::FIXPOINT:
       // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
       return make_contractor_worklist_approx_fixpoint(
-          TerminationCondition(0.05), to_fixpoint(contractor)->contractors(),
-          config());
+          TerminationCondition(contractor_improvement_threshold),
+          to_fixpoint(contractor)->contractors(), config());
     case Contractor::Kind::WORKLIST_FIXPOINT:
       // std::shared_ptr<ContractorFixpoint> cfp = to_fixpoint(contractor);
       return make_contractor_worklist_approx_fixpoint(
-          TerminationCondition(0.05),
+          TerminationCondition(contractor_improvement_threshold),
           to_worklist_fixpoint(contractor)->contractors(), config());
 
     default:
       vector<Contractor> ctcs;
-      return make_contractor_fixpoint(TerminationCondition(0.05), ctcs,
-                                      config());
+      return make_contractor_fixpoint(
+          TerminationCondition(contractor_improvement_threshold), ctcs,
+          config());
   }
 }
 
