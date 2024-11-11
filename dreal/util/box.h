@@ -113,8 +113,9 @@ class Box {
   /// Returns the diameter of the first variable in box greater than threshold
   /// and the associated index .
   std::pair<double, int> FirstDiamGT(
-      double threshold, const unordered_set<std::string> preferred =
-                            unordered_set<std::string>()) const;
+      double threshold, double preferred_threshold,
+      const unordered_set<std::string> preferred =
+          unordered_set<std::string>()) const;
 
   /// Bisects the box at @p i -th dimension.
   /// @throws std::runtime if @p i -th dimension is not bisectable.

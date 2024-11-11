@@ -174,7 +174,8 @@ pair<double, int> Box::MinDiamGT(double threshold) const {
 }
 
 pair<double, int> Box::FirstDiamGT(
-    double threshold, const unordered_set<std::string> preferred) const {
+    double threshold, double preferred_threshold,
+    const unordered_set<std::string> preferred) const {
   double min_diam{std::numeric_limits<double>::max()};
   int idx{-1};
   bool is_preferred = false;
@@ -184,12 +185,12 @@ pair<double, int> Box::FirstDiamGT(
 
     const double diam_i{values_[i].diam()};
 
-    bool can_split =
-        !values_[i].is_unbounded() &&
-        (diam_i > threshold || (is_i_preferred && diam_i * 1e0 > threshold)) &&
-        (values_[i].is_bisectable() ||
-         (min_diam == std::numeric_limits<double>::max() &&
-          diam_i == POS_INFINITY));
+    bool can_split = !values_[i].is_unbounded() &&
+                     (diam_i > threshold ||
+                      (is_i_preferred && diam_i > preferred_threshold)) &&
+                     (values_[i].is_bisectable() ||
+                      (min_diam == std::numeric_limits<double>::max() &&
+                       diam_i == POS_INFINITY));
 
     DREAL_LOG_DEBUG(
         "box::FirstDiamGT() checking {} (splittable: {}), pref: {}/{}, diam: "

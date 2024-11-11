@@ -61,20 +61,22 @@ class MctsNode {
               ContractorStatus* const cs, const Contractor& contractor,
               TimerGuard& branch_timer_guard, TimerGuard& eval_timer_guard,
               TimerGuard& prune_timer_guard, const Config& config,
-              IcpStat& stat);
+              IcpStat& stat, double preferred_threshold);
   double simulate_box(Box& sim_box,
                       const std::vector<FormulaEvaluator>& formula_evaluators,
                       ContractorStatus* const cs, const Contractor& contractor,
                       TimerGuard& eval_timer_guard,
                       TimerGuard& prune_timer_guard, const Config& config,
-                      IcpStat& stat, std::default_random_engine& rnd);
+                      IcpStat& stat, std::default_random_engine& rnd,
+                      double preferred_precision);
   double simulate(const std::vector<FormulaEvaluator>& formula_evaluators,
                   ContractorStatus* const cs, const Contractor& contractor,
                   TimerGuard& eval_timer_guard, TimerGuard& prune_timer_guard,
                   const Config& config, IcpStat& stat,
-                  std::default_random_engine& rnd);
+                  std::default_random_engine& rnd, double preferred_precision);
   MctsNode* select();
   void backpropagate(double wins);
+  double preferred_width_ratio(const Config& config);
 
   bool unsat();
   bool delta_sat();
@@ -114,7 +116,7 @@ class IcpMcts : public IcpSeq {
                 const Contractor& heuristic_contractor,
                 TimerGuard& branch_timer_guard, TimerGuard& eval_timer_guard,
                 TimerGuard& prune_timer_guard, IcpStat& stat,
-                std::default_random_engine& rnd);
+                std::default_random_engine& rnd, double preferred_precision);
 
   // Generate a lower-cost contractor to use in simulation
   optional<Contractor> make_heuristic_contractor(const Contractor& contractor);

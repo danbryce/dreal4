@@ -29,6 +29,15 @@ namespace dreal {
 std::pair<double, int> FindMaxDiam(const Box& box,
                                    const DynamicBitset& active_set);
 
+/// Finds the dimension with the maximum diameter in a @p box. It only
+/// consider the dimensions enabled in @p active_set.  It prefers
+/// preferred variables that haven't converged.
+///
+/// @returns a pair of (max dimension, variable index).
+std::pair<double, int> FindPreferredDiam(
+    const Box& box, const DynamicBitset& active_set,
+    const unordered_set<std::string> preferred, double preferred_threshold);
+
 /// Finds the dimension with the minimum diameter in a @p box. It only
 /// consider the dimensions enabled in @p active_set.
 ///
@@ -50,5 +59,24 @@ std::pair<double, int> FindMinDiam(const Box& box,
 /// @returns the branching dimension if found, otherwise returns -1.
 int BranchLargestFirst(const Box& box, const DynamicBitset& active_set,
                        Box* left, Box* right);
+
+/// Finds the largest dimension in `active_set` and partitions `box`
+/// into two sub-boxes by branching on the chosen dimension. It
+/// traverses only the variables enabled by @p active_set, to find a
+/// branching dimension.  Prefer preferred variables first.
+///
+/// @param[in] box The box to branch.
+/// @param[in] active_set A subset of dimensions of the input box that is active
+///                       in the given constraints.
+/// @param[in] preferred A set of preferred variable names.
+/// @param[in] preferred_threshold preferred variable convergence threshold.
+
+/// @param[out] left The left sub-box.
+/// @param[out] right The right sub-box.
+///
+/// @returns the branching dimension if found, otherwise returns -1.
+int BranchPreferredFirst(const Box& box, const DynamicBitset& active_set,
+                         const unordered_set<std::string> preferred,
+                         double preferred_threshold, Box* left, Box* right);
 
 }  // namespace dreal
