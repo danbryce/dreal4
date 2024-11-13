@@ -301,10 +301,16 @@ double MctsNode::simulate_box(
           // v.get_id() - 1;
         }
         point_box = next_candidate;
+        DREAL_LOG_DEBUG(
+            "MctsNode::simulate_box() starting pruning after sampling, cs = {}",
+            cs->mutable_branching_point());
 
         contractor.Prune(cs);
         prune_timer_guard.pause();
         stat.num_sim_prune_++;
+
+        DREAL_LOG_DEBUG(
+            "MctsNode::simulate_box() completed pruning after sampling");
 
         next_candidate = cs->box();
 
@@ -507,17 +513,20 @@ bool IcpMcts::CheckSat(const Contractor& contractor,
 
   DREAL_LOG_DEBUG("Random Seed: {}", seed_counter);
 
-  const Contractor heuristic_contractor = static_cast<const Contractor>(
-      make_heuristic_contractor(contractor).value());
+  // const Contractor heuristic_contractor = static_cast<const Contractor>(
+  //     make_heuristic_contractor(contractor).value());
 
   double preferred_precision = root->preferred_width_ratio(config());
 
-  root->simulate(formula_evaluators, cs, heuristic_contractor, eval_timer_guard,
-                 prune_timer_guard, config(), stat, rnd, preferred_precision);
+  root->simulate(formula_evaluators, cs, contractor  // heuristic_contractor
+                 ,
+                 eval_timer_guard, prune_timer_guard, config(), stat, rnd,
+                 preferred_precision);
 
   while (!(root->unsat() || root->delta_sat() || root->sat())) {
     DREAL_LOG_DEBUG("[");
-    MctsBP(root, formula_evaluators, cs, contractor, heuristic_contractor
+    MctsBP(root, formula_evaluators, cs, contractor,
+           contractor  // heuristic_contractor
 
            ,
            branch_timer_guard, eval_timer_guard, prune_timer_guard, stat, rnd,
